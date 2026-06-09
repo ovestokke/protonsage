@@ -1,0 +1,25 @@
+# Go
+/bin/
+/build/
+/dist/
+*.test
+*.out
+coverage.txt
+
+# Wails/frontend
+frontend/node_modules/
+frontend/dist/*
+!frontend/dist/.gitkeep
+frontend/src/wailsjs/
+frontend/wailsjs/
+frontend/package.json.md5
+
+# Local app data
+*.db
+*.sqlite
+*.sqlite3
+
+# Editors/OS
+.DS_Store
+.idea/
+.vscode/

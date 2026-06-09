@@ -1,0 +1,17 @@
+"libraryfolders"
+{
+    "0"
+    {
+        "path"      "/home/example/.local/share/Steam"
+        "label"     ""
+        "contentid" "123456789"
+        "totalsize" "0"
+    }
+    "1"
+    {
+        "path"      "/mnt/games/SteamLibrary"
+        "label"     "games"
+        "contentid" "987654321"
+        "totalsize" "0"
+    }
+}
