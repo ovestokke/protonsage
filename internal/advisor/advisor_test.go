@@ -245,3 +245,126 @@ func findSuggestion(t *testing.T, suggestions []core.Suggestion, kind string, sn
 	t.Fatalf("suggestion %s %q not found in %+v", kind, snippet, suggestions)
 	return core.Suggestion{}
 }
+
+func TestWorkaroundPatternExtraction(t *testing.T) {
+	now := time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
+	profile := core.SystemProfile{Normalized: core.NormalizedSystemProfile{GPUVendor: "nvidia", DistroFamily: "arch"}}
+
+	tests := []struct {
+		notes      string
+		wantKind   string
+		wantSubstr string
+	}{
+		{notes: "Use Proton Experimental for best results.", wantKind: core.SuggestionKindWorkaround, wantSubstr: "Proton Experimental"},
+		{notes: "Switch the compatibility tool to Proton 9.0.", wantKind: core.SuggestionKindWorkaround, wantSubstr: "Proton"},
+		{notes: "I had to disable the intro video to play.", wantKind: core.SuggestionKindWorkaround, wantSubstr: "intro video"},
+		{notes: "Use GE-Proton8-25 for this game.", wantKind: core.SuggestionKindWorkaround, wantSubstr: "GE-Proton"},
+		{notes: "Black screen on launch, had to use windowed mode.", wantKind: core.SuggestionKindWorkaround, wantSubstr: "windowed mode"},
+		{notes: "No audio in cutscenes.", wantKind: core.SuggestionKindDiagnostic, wantSubstr: "no audio"},
+		{notes: "Works out of the box, no tweaks required.", wantKind: core.SuggestionKindNote, wantSubstr: "no tweaks required"},
+		{notes: "Runs flawlessly, no tweaks required.", wantKind: core.SuggestionKindNote, wantSubstr: "flawlessly"},
+		{notes: "Disable Steam Input for controller support.", wantKind: core.SuggestionKindWorkaround, wantSubstr: "Steam Input"},
+		{notes: "Game crashes to desktop after loading.", wantKind: core.SuggestionKindDiagnostic, wantSubstr: "crash"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.wantSubstr, func(t *testing.T) {
+			report := core.Report{
+				SourceReportID: "wp-" + tc.wantSubstr,
+				AppID:          999,
+				Title:          "Test Game",
+				Timestamp:      now.Add(-7 * 24 * time.Hour),
+				Rating:         "gold",
+				Notes:          tc.notes,
+				SourceID:       "protondb-data:test",
+				SystemInfo:     map[string]string{"gpuVendor": "NVIDIA", "distro": "Arch Linux"},
+			}
+			suggestions := ExtractSuggestions(RankReports([]core.Report{report}, profile, now))
+			found := false
+			for _, s := range suggestions {
+				if s.Kind == tc.wantKind && strings.Contains(strings.ToLower(s.Snippet), strings.ToLower(tc.wantSubstr)) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("notes=%q: no %s suggestion containing %q in %+v", tc.notes, tc.wantKind, tc.wantSubstr, suggestions)
+			}
+		})
+	}
+}
+
+func TestPreviewEnvVarOrdering(t *testing.T) {
+	selected := []core.Suggestion{
+		{ID: "s1", Kind: core.SuggestionKindLaunchOption, Snippet: "PROTON_ENABLE_NVAPI=1 MANGOHUD=1 %command%"},
+		{ID: "s2", Kind: core.SuggestionKindWrapper, Snippet: "gamemoderun"},
+	}
+	preview := BuildLaunchPreview(selected, "-novid")
+	if strings.Count(preview.Preview, "%command%") != 1 {
+		t.Fatalf("expected 1 command token, got %q", preview.Preview)
+	}
+	envIdx := strings.Index(preview.Preview, "PROTON_ENABLE_NVAPI=1")
+	wrapIdx := strings.Index(preview.Preview, "gamemoderun")
+	commandIdx := strings.Index(preview.Preview, "%command%")
+	suffixIdx := strings.Index(preview.Preview, "-novid")
+	if envIdx > wrapIdx || wrapIdx > commandIdx || commandIdx > suffixIdx {
+		t.Fatalf("ordering wrong: env=%d wrap=%d cmd=%d suffix=%d in %q", envIdx, wrapIdx, commandIdx, suffixIdx, preview.Preview)
+	}
+}
+
+func TestPreviewWithExistingCommandToken(t *testing.T) {
+	selected := []core.Suggestion{
+		{ID: "s1", Kind: core.SuggestionKindEnvVar, Snippet: "DXVK_ASYNC=1"},
+	}
+	preview := BuildLaunchPreview(selected, "RADV_PERFTEST=gpl %command% -novid")
+	if preview.Preview != `RADV_PERFTEST=gpl DXVK_ASYNC=1 %command% -novid` {
+		t.Fatalf("preview = %q", preview.Preview)
+	}
+}
+
+func TestPreviewConflictingEnvVars(t *testing.T) {
+	suggestions := []core.Suggestion{
+		{ID: "s1", Kind: core.SuggestionKindEnvVar, Snippet: "PROTON_ENABLE_NVAPI=1"},
+		{ID: "s2", Kind: core.SuggestionKindEnvVar, Snippet: "PROTON_ENABLE_NVAPI=0"},
+	}
+	preview := BuildLaunchPreview(suggestions, "")
+	if len(preview.Conflicts) == 0 {
+		t.Fatalf("expected conflicts for conflicting env vars: %q", preview.Preview)
+	}
+}
+
+func TestStaleReportWarning(t *testing.T) {
+	now := time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
+	profile := core.SystemProfile{Normalized: core.NormalizedSystemProfile{GPUVendor: "nvidia", DistroFamily: "arch"}}
+	game := core.Game{AppID: 999, Name: "Old Game", Launcher: core.LauncherSteam}
+
+	allStale := []core.Report{
+		reportWithSystem("s1", time.Date(2023, time.January, 1, 0, 0, 0, 0, time.UTC), "silver", "PROTON_USE_WINED3D=1 %command%", nil),
+		reportWithSystem("s2", time.Date(2022, time.May, 1, 0, 0, 0, 0, time.UTC), "bronze", "", nil),
+	}
+	rec := GenerateRecommendation(game, allStale, profile, now)
+
+	foundStaleWarning := false
+	for _, w := range rec.Warnings {
+		if strings.Contains(w, "stale") || strings.Contains(w, "historical") {
+			foundStaleWarning = true
+		}
+	}
+	if !foundStaleWarning {
+		t.Fatalf("expected stale/historical warning, got: %v", rec.Warnings)
+	}
+}
+
+func TestRecommendationNoReports(t *testing.T) {
+	now := time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
+	profile := core.SystemProfile{Normalized: core.NormalizedSystemProfile{GPUVendor: "nvidia"}}
+	game := core.Game{AppID: 999, Name: "Unknown Game", Launcher: core.LauncherSteam}
+
+	rec := GenerateRecommendation(game, nil, profile, now)
+	if !strings.Contains(rec.Summary, "No imported ProtonDB reports") {
+		t.Fatalf("expected no-reports message, got: %q", rec.Summary)
+	}
+	if len(rec.Suggestions) != 0 {
+		t.Fatalf("expected no suggestions for empty reports, got %d", len(rec.Suggestions))
+	}
+}

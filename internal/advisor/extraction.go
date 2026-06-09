@@ -19,12 +19,48 @@ var knownWorkaroundPatterns = []struct {
 	kind    string
 	pattern *regexp.Regexp
 }{
+	// Proton version workarounds
 	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\buse\s+Proton\s+Experimental\b`)},
+	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\buse\s+(?:Proton\s+)?GE[-\s]?Proton[-\d]*\b`)},
+	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\b(?:switch|change|set)\s+(?:the\s+)?(?:compatibility\s+)?\s*tool\s+to\s+Proton\b`)},
+	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\buse\s+Proton\s+[\d.]+\b`)},
+
+	// Intro/video/splash skip
 	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\bdisabl(?:e|ing)\s+(?:the\s+)?intro\s+videos?\b`)},
 	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\bskip\s+(?:the\s+)?intro\s+videos?\b`)},
+	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\bskip\s+(?:the\s+)?intro\b`)},
 	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\bdisabl(?:e|ing)\s+(?:the\s+)?launcher\b`)},
+
+	// Display/window issues
 	{kind: core.SuggestionKindDiagnostic, pattern: regexp.MustCompile(`(?i)\bblack\s+screen\b`)},
+	{kind: core.SuggestionKindDiagnostic, pattern: regexp.MustCompile(`(?i)\bwhite\s+screen\b`)},
+	{kind: core.SuggestionKindDiagnostic, pattern: regexp.MustCompile(`(?i)\bscreen\s+flick(?:er|ering)\b`)},
+	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\b(?:run|start|launch|use|play)\s+(?:in\s+)?(?:windowed|window)\s+mode\b`)},
+	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\b(?:force|set)\s+(?:to\s+)?(?:windowed|window)\s+mode\b`)},
+	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\bdisabl(?:e|ing)\s+(?:the\s+)?fullscreen\b`)},
+
+	// Audio issues
+	{kind: core.SuggestionKindDiagnostic, pattern: regexp.MustCompile(`(?i)\bno\s+(?:audio|sound)\b`)},
+	{kind: core.SuggestionKindDiagnostic, pattern: regexp.MustCompile(`(?i)\baudio\s+(?:crackl|stutter|cut|lag)\w*\b`)},
+
+	// Controller/input
+	{kind: core.SuggestionKindDiagnostic, pattern: regexp.MustCompile(`(?i)\bcontroller\s+(?:not\s+)?(?:work|detect|respond)\b`)},
+	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\bdisabl(?:e|ing)\s+(?:Steam\s+)?input\b`)},
+
+	// Freezes/crashes
+	{kind: core.SuggestionKindDiagnostic, pattern: regexp.MustCompile(`(?i)\b(?:freeze|hang|lock\s*up)s?\s+(?:on|at|during|after)?\b`)},
+	{kind: core.SuggestionKindDiagnostic, pattern: regexp.MustCompile(`(?i)\bcrash(?:es)?\s+(?:on|at|during|after|to|upon)\b`)},
+	{kind: core.SuggestionKindDiagnostic, pattern: regexp.MustCompile(`(?i)\bcrash(?:es)?\s+(?:to|on)\s+(?:desktop|lobby)\b`)},
+
+	// Multiplayer/anti-cheat
+	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\banti[-\s]?cheat\b`)},
+	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\bEAC\s+(?:enabled|support)\b`)},
+
+	// Common tips
+	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\buse\s+(?:the\s+)?native\s+(?:Linux\s+)?version\b`)},
+	{kind: core.SuggestionKindWorkaround, pattern: regexp.MustCompile(`(?i)\b(?:install|use)\s+(?:protontricks|winetricks)\b`)},
 	{kind: core.SuggestionKindNote, pattern: regexp.MustCompile(`(?i)\bno\s+tweaks?\s+required\b`)},
+	{kind: core.SuggestionKindNote, pattern: regexp.MustCompile(`(?i)\b(?:works|runs)\s+(?:out\s+of\s+the\s+box|perfectly|flawlessly)\b`)},
 }
 
 type extractionCandidate struct {
