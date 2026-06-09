@@ -1,0 +1,13 @@
+"libraryfolders"
+{
+    "0"
+    {
+        "path"      "testdata/steam/native-root"
+        "label"     ""
+    }
+    "1"
+    {
+        "path"      "testdata/steam/secondary-library"
+        "label"     "games"
+    }
+}

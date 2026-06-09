@@ -4,53 +4,59 @@ This file is temporary and should describe only the next implementation slice. D
 
 ## Current state
 
-The Go + Wails stack test has been bootstrapped.
+Implemented and verified:
 
-Implemented:
-
-- Go module and package layout.
-- CLI at `cmd/protonsage`:
+- Go + Wails skeleton, CLI, app facade, core models, Steam read-only scanner, system profile detection, latest ProtonDB snapshot resolver, and frontend smoke UI from the bootstrap slice.
+- SQLite storage package in `internal/storage` using `database/sql` + pure-Go `modernc.org/sqlite`.
+- Idempotent `schema.sql` application with tables for sources, import runs, games, reports, report system info, launch-option suggestions, and FTS5 tables for game/report search.
+- Local ProtonDB snapshot importer in `internal/protondb` that reads a `reports_*.tar.gz` stream containing `reports_piiremoved.json`, stores import metadata/attribution, upserts games, inserts reports, and stores normalized/raw `systemInfo`.
+- Tiny fixture at `testdata/protondb/reports_sample.tar.gz` with 2 appids and 3 reports.
+- CLI commands:
   - `version`
   - `latest-snapshot`
+  - `import-fixture --db ... --fixture ...`
+  - `lookup --db ... --appid ...`
+  - `data-status --db ...`
   - `system-profile`
   - `scan-steam --dry-run [--root ...]`
-- Core models in `internal/core`.
-- Application facade in `internal/app` shared by CLI/Wails.
-- ProtonDB latest-snapshot resolver in `internal/protondb` using GitHub directory metadata only.
-- Read-only Steam root detection, VDF parser, library scanner, and appmanifest parser in `internal/steam`.
-- Read-only system profile detection/parsers in `internal/system`.
-- Advisor placeholder in `internal/advisor`.
-- SQLite schema draft in `internal/storage/schema.sql`.
-- Wails root files behind build tag `wails`.
-- React + Vite + Tailwind-enabled frontend with a polished Wails UI smoke test.
-- `wails.json` uses `build:tags: "wails,webkit2_41"` for this system's WebKitGTK 4.1.
-- README with development/build commands and ProtonDB license note.
+  - `installed --db ... [--root ...]`
+  - `recommend --db ... --appid ...`
+  - `launch-preview --db ... --appid ... --select ...`
+- Minimal imported-data status exposed through `internal/app.GetDataStatus`.
+- Normalized system-profile categories in `internal/core` shared by local detection and ProtonDB report system info: GPU vendor/model/driver, CPU vendor/class, RAM bucket, distro family, kernel, and session type.
+- Steam scan now also reads existing per-user `localconfig.vdf` launch options read-only and attaches them to installed games.
+- Installed-game matching against imported data is exposed through `internal/app.GetInstalledGames` and the `installed` CLI command, using appid first and exact normalized name fallback.
+- Deterministic no-AI advisor foundation in `internal/advisor`: recency-first report ranking, fresh/recent/stale/historical labels, normalized system similarity explanations, quality/tweak signals, launch-option/workaround extraction, suggestion grouping/deduping, simple env-var conflict notes, cited summaries, and copy/export launch preview composition.
+- Recommendation and preview flows exposed through `internal/app.GetRecommendation`, `internal/app.BuildLaunchPreview`, Wails bindings, and CLI JSON commands.
 
-Verified:
+Verified in this slice:
 
 ```bash
+go fmt ./...
 go test ./...
 go test -tags 'wails,webkit2_41' ./...
 go run ./cmd/protonsage --help
 go run ./cmd/protonsage latest-snapshot
+go run ./cmd/protonsage import-fixture --db /tmp/protonsage-fixture.db --fixture testdata/protondb/reports_sample.tar.gz
+go run ./cmd/protonsage lookup --db /tmp/protonsage-fixture.db --appid 123
+go run ./cmd/protonsage data-status --db /tmp/protonsage-fixture.db
 go run ./cmd/protonsage system-profile
 go run ./cmd/protonsage scan-steam --dry-run
+go run ./cmd/protonsage installed --db /tmp/protonsage-fixture.db --root testdata/steam/native-root
+go run ./cmd/protonsage recommend --db /tmp/protonsage-fixture.db --appid 123
+go run ./cmd/protonsage launch-preview --db /tmp/protonsage-fixture.db --appid 123 --select <suggestion-id>
 cd frontend && npm run build
-$(go env GOPATH)/bin/wails build -clean
 ```
-
-Latest observed ProtonDB snapshot remains `reports_jun1_2026.tar.gz`.
 
 ## Next objective
 
-Implement the first real data/storage slice while preserving the current safety constraints:
+Build the first recommendation UI slice without expanding safety scope:
 
-1. Add a small SQLite storage package.
-2. Add a tiny ProtonDB fixture importer for tests.
-3. Add report/game search foundations.
-4. Connect minimal imported-data status to CLI and Wails facade.
-
-Do not implement full large archive download/import until the tiny fixture path and schema are tested.
+1. Add an installed-game/search view that calls Go backend services only.
+2. Show recommendation JSON for a selected appid: ranked evidence, citations, freshness/stale labels, system-similarity notes, suggestions, confidence, and conflict notes.
+3. Let the user select copyable suggestions with checkboxes/toggles.
+4. Show a live launch-option preview assembled through the Go app service.
+5. Keep the PoC copy/export only; do not write Steam config or call AI.
 
 ## Constraints
 
@@ -62,68 +68,3 @@ Do not implement full large archive download/import until the tiny fixture path 
 - Keep domain logic independent of Wails/frontend code.
 - Keep frontend file/system actions behind explicit Go backend methods.
 - Keep implementation small and fixture-testable.
-
-## Proposed next file additions
-
-```text
-internal/storage/
-  db.go                    # open/init DB, apply schema.sql
-  queries.go               # upsert/query games and reports
-  db_test.go
-internal/protondb/
-  import.go                # import from io.Reader/tar.gz fixture first
-  import_test.go
-testdata/protondb/
-  reports_sample.tar.gz or reports_piiremoved.json fixture
-```
-
-If embedding `schema.sql`, use Go `embed` inside `internal/storage` and keep SQL as the source of truth.
-
-## Next implementation steps
-
-### 1. Storage package
-
-- Add `storage.Open(path string)` or `storage.OpenInMemory()`.
-- Apply `schema.sql` idempotently.
-- Add minimal insert/query functions for:
-  - sources
-  - import_runs
-  - games
-  - reports
-  - report_system_info
-- Keep SQLite dependency explicit and small. Candidate: `modernc.org/sqlite` for pure Go, or `github.com/mattn/go-sqlite3` if CGO is acceptable. Decide deliberately before adding.
-
-### 2. Tiny ProtonDB fixture importer
-
-- Create a tiny fixture matching the modern archive shape:
-  - tar.gz containing `reports_piiremoved.json`
-  - a handful of records with appid, timestamp, rating/verdict, notes, launch options, Proton version, and `systemInfo`.
-- Import from an `io.Reader` so tests do not need network.
-- Store import metadata: snapshot filename/date/source URL/import time/license note.
-
-### 3. Query/search foundation
-
-- Implement lookup by appid.
-- Add simple name/text search first; FTS can come after the basic tests are green.
-- Add tests proving imported reports are retrievable and ordered by timestamp descending.
-
-### 4. CLI/app facade
-
-Add CLI command only if storage/import is ready:
-
-```bash
-go run ./cmd/protonsage import-fixture --db /tmp/protonsage.db --fixture testdata/protondb/reports_sample.tar.gz
-go run ./cmd/protonsage lookup --db /tmp/protonsage.db --appid 123
-```
-
-Expose a minimal Wails-safe method in `internal/app` such as `GetDataStatus()` after storage exists.
-
-## Acceptance criteria for next slice
-
-- `go test ./...` passes.
-- Existing CLI commands keep working.
-- A tiny ProtonDB fixture archive can be imported into SQLite.
-- Imported reports can be queried by appid and sorted newest-first.
-- No real ProtonDB archive is downloaded during tests.
-- No Steam config write path is added.
-- Wails/frontend still builds, or any UI build blocker is documented clearly.

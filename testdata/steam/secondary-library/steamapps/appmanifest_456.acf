@@ -1,0 +1,10 @@
+"AppState"
+{
+    "appid"     "456"
+    "Universe"  "1"
+    "name"      "Sample Tactics"
+    "StateFlags" "4"
+    "installdir" "Sample Tactics"
+    "SizeOnDisk" "777777"
+    "buildid"   "12345"
+}

@@ -1,14 +1,12 @@
 package advisor
 
-import "protonsage/internal/core"
+import (
+	"time"
 
-// DraftRecommendation returns a placeholder deterministic recommendation shape.
-// Real scoring/extraction will be added after data import and report retrieval exist.
+	"protonsage/internal/core"
+)
+
+// DraftRecommendation returns the deterministic empty-report recommendation shape.
 func DraftRecommendation(game core.Game) core.Recommendation {
-	return core.Recommendation{
-		Game:        game,
-		Summary:     "No ProtonDB reports imported yet. Import data to generate cited recommendations.",
-		Suggestions: nil,
-		GeneratedBy: core.RecommendationSourceRules,
-	}
+	return GenerateRecommendation(game, nil, core.SystemProfile{}, time.Time{})
 }

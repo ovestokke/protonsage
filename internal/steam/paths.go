@@ -3,6 +3,7 @@ package steam
 import (
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 // CandidateRoots returns common Linux Steam roots for a home directory.
@@ -40,7 +41,9 @@ func ExistingRoots() []string {
 			roots = append(roots, key)
 		}
 	}
-	return dedupePaths(roots)
+	roots = dedupePaths(roots)
+	sort.Strings(roots)
+	return roots
 }
 
 func dedupePaths(paths []string) []string {
@@ -51,11 +54,15 @@ func dedupePaths(paths []string) []string {
 			continue
 		}
 		cleaned := filepath.Clean(path)
-		if seen[cleaned] {
+		key := cleaned
+		if realPath, err := filepath.EvalSymlinks(cleaned); err == nil {
+			key = filepath.Clean(realPath)
+		}
+		if seen[key] {
 			continue
 		}
-		seen[cleaned] = true
-		out = append(out, cleaned)
+		seen[key] = true
+		out = append(out, key)
 	}
 	return out
 }

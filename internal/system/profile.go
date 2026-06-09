@@ -55,6 +55,7 @@ func DetectProfile() core.SystemProfile {
 	}
 	profile.Raw["goos"] = runtime.GOOS
 	profile.Raw["goarch"] = runtime.GOARCH
+	profile.Normalized = core.NormalizeSystemProfile(profile)
 	return profile
 }
 

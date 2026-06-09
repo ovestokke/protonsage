@@ -1,0 +1,10 @@
+"AppState"
+{
+    "appid"     "123"
+    "Universe"  "1"
+    "name"      "Puzzle Proton"
+    "StateFlags" "4"
+    "installdir" "Puzzle Proton"
+    "SizeOnDisk" "424242"
+    "buildid"   "999"
+}

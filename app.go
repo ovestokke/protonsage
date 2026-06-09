@@ -30,3 +30,19 @@ func (a *App) GetAppInfo() appsvc.AppInfo {
 func (a *App) GetSystemProfile() core.SystemProfile {
 	return a.svc.GetSystemProfile(a.ctx)
 }
+
+func (a *App) ScanSteam(root string) ([]core.Game, error) {
+	return a.svc.ScanSteam(a.ctx, root)
+}
+
+func (a *App) GetInstalledGames(dbPath string, root string) ([]appsvc.InstalledGameStatus, error) {
+	return a.svc.GetInstalledGames(a.ctx, dbPath, root)
+}
+
+func (a *App) GetRecommendation(dbPath string, appid int) (core.Recommendation, error) {
+	return a.svc.GetRecommendation(a.ctx, dbPath, appid)
+}
+
+func (a *App) BuildLaunchPreview(selected []core.Suggestion, existing string) core.PreviewResult {
+	return a.svc.BuildLaunchPreview(a.ctx, selected, existing)
+}

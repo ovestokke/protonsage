@@ -1,0 +1,73 @@
+{
+  "123": {
+    "appid": 123,
+    "title": "Fixture Quest",
+    "reports": [
+      {
+        "id": "r-123-old",
+        "timestamp": "2024-01-15T10:00:00Z",
+        "rating": "silver",
+        "verdict": "Starts with older workaround",
+        "notes": "Older NVIDIA report: use PROTON_USE_WINED3D=1 %command% if you see a black screen.",
+        "launchOptions": "PROTON_USE_WINED3D=1 %command%",
+        "protonVersion": "8.0-5",
+        "systemInfo": {
+          "gpu": {
+            "vendor": "NVIDIA",
+            "name": "GeForce GTX 1080",
+            "driver": "535.154"
+          },
+          "cpu": "AMD Ryzen 5 3600",
+          "ram": "16 GB",
+          "os": "Arch Linux",
+          "kernel": "6.6.8",
+          "desktop": "KDE Plasma"
+        }
+      },
+      {
+        "id": "r-123-new",
+        "timestamp": "2026-05-20T18:30:00Z",
+        "rating": "gold",
+        "verdict": "Runs after disabling intro videos",
+        "notes": "Fresh AMD report: set RADV_PERFTEST=gpl %command% and use Proton Experimental.",
+        "launchOptions": "RADV_PERFTEST=gpl %command%",
+        "protonVersion": "Proton Experimental",
+        "systemInfo": {
+          "gpuVendor": "AMD",
+          "gpuName": "Radeon RX 7800 XT",
+          "driverVersion": "Mesa 25.1",
+          "cpu": "Ryzen 7 7800X3D",
+          "ramGb": 32,
+          "distro": "Fedora Linux 42",
+          "kernel": "6.14.4",
+          "desktop": "GNOME"
+        }
+      }
+    ]
+  },
+  "456": {
+    "appid": 456,
+    "name": "Sample Tactics",
+    "reports": [
+      {
+        "id": "r-456-one",
+        "timestamp": "2026-04-10T12:00:00Z",
+        "rating": "platinum",
+        "verdict": "Works out of the box",
+        "notes": "No tweaks required on NVIDIA driver 550.",
+        "launchOptions": "",
+        "protonVersion": "9.0-4",
+        "systemInfo": {
+          "gpu": "NVIDIA RTX 4070",
+          "gpuVendor": "NVIDIA",
+          "driver": "550.90",
+          "cpu": "Intel Core i5-12600K",
+          "ram": "32 GB",
+          "os": "Ubuntu 24.04",
+          "kernel": "6.8.0",
+          "desktop": "KDE Plasma"
+        }
+      }
+    ]
+  }
+}

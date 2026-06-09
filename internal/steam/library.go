@@ -54,6 +54,12 @@ func ScanRoot(root string) ([]core.Game, error) {
 	if err != nil {
 		return nil, err
 	}
+	launchOptions, err := LaunchOptionsFromRoot(root)
+	if err != nil {
+		// Existing launch options are optional display context; a malformed localconfig
+		// should not prevent the read-only installed-game scan from succeeding.
+		launchOptions = map[int]string{}
+	}
 
 	var games []core.Game
 	for _, library := range libraries {
@@ -64,6 +70,11 @@ func ScanRoot(root string) ([]core.Game, error) {
 				continue
 			}
 			return nil, err
+		}
+		for i := range libraryGames {
+			if value := launchOptions[libraryGames[i].AppID]; value != "" {
+				libraryGames[i].ExistingLaunchOptions = value
+			}
 		}
 		games = append(games, libraryGames...)
 	}

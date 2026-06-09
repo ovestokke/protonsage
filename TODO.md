@@ -19,33 +19,33 @@ Durable implementation backlog. Broad product/architecture direction lives in `P
 - [x] Write a small latest-snapshot resolver for `https://github.com/bdefore/protondb-data` that lists `reports/reports_*.tar.gz`, parses dates from filenames, and selects the newest archive.
 - [x] Confirm and document whether the selected modern archive is cumulative or incremental. Initial spot-check: May/June 2026 archives both contain one `reports_piiremoved.json` file and include records from 2019 through the snapshot date, so they appear cumulative for the modern schema.
 - [x] Inspect only the latest ProtonDB data snapshot by default without cloning the full repository.
-- [ ] Write a small importer for one local/latest snapshot archive.
-- [ ] Store raw source identifiers, snapshot filename/date, report timestamps, app IDs/names, ratings, report text, and ProtonDB report `systemInfo` metadata needed for ranking/similarity.
-- [ ] Add SQLite FTS for game names and report text.
-- [ ] Add import tests using a tiny fixture archive/sample.
+- [x] Write a small importer for one local/latest snapshot archive. Current verified path imports a local tiny `reports_*.tar.gz` fixture from `io.Reader`; large archive download/import remains later.
+- [x] Store raw source identifiers, snapshot filename/date, source URL, import time, license note, report timestamps, app IDs/names, ratings, report text, launch options, Proton version, and ProtonDB report `systemInfo` metadata needed for ranking/similarity.
+- [x] Add SQLite FTS for game names and report text.
+- [x] Add import tests using a tiny fixture archive/sample.
 
 ## Phase 2 — Core recommendation flow / no-AI path
 
-- [ ] Implement game lookup by Steam appid and fuzzy/name search.
-- [ ] Implement report ranking where recency is a central scoring factor.
-- [ ] Normalize ProtonDB report `systemInfo` enough to compare GPU/vendor/driver, CPU class, RAM, distro, kernel, and Proton version where available.
-- [ ] Add hardware/OS similarity as an explanatory ranking signal, secondary to recency.
-- [ ] Mark stale reports as historical context rather than current truth.
-- [ ] Extract launch option candidates from report text.
-- [ ] Turn extracted tips into selectable suggestion records with snippet, source reports, occurrence count, recency, hardware/OS similarity, confidence, and conflict notes.
-- [ ] Generate a deterministic recommendation summary with cited report/source references.
-- [ ] Build launch-option preview from selected checkbox/toggle suggestions.
-- [ ] Add tests for scoring, system-similarity behavior, stale-report behavior, launch-option extraction, and preview composition.
+- [x] Implement game lookup by Steam appid and fuzzy/name search.
+- [x] Implement report ranking where recency is a central scoring factor.
+- [x] Normalize ProtonDB report `systemInfo` enough to compare GPU/vendor/driver, CPU class, RAM, distro, and kernel. Proton-version similarity remains later ranking work.
+- [x] Add hardware/OS similarity as an explanatory ranking signal, secondary to recency.
+- [x] Mark stale reports as historical context rather than current truth.
+- [x] Extract launch option candidates from report text.
+- [x] Turn extracted tips into selectable suggestion records with snippet, source reports, occurrence count, recency, hardware/OS similarity, confidence, and conflict notes.
+- [x] Generate a deterministic recommendation summary with cited report/source references.
+- [x] Build launch-option preview from selected checkbox/toggle suggestions.
+- [x] Add tests for scoring, system-similarity behavior, stale-report behavior, launch-option extraction, and preview composition.
 
 ## Phase 3 — Steam read-only scan + native system detection — PoC required
 
 - [x] Locate Steam installation and library folders on Linux, including common native paths and Flatpak Steam path.
 - [x] Parse `steamapps/libraryfolders.vdf` read-only to discover all Steam library folders.
 - [x] Parse `steamapps/appmanifest_*.acf` read-only for appid, name, install dir, size/state/build metadata.
-- [ ] Optionally read existing per-game launch options from `userdata/<user>/config/localconfig.vdf` read-only for display/context.
-- [ ] Match installed games to imported ProtonDB records.
+- [x] Optionally read existing per-game launch options from `userdata/<user>/config/localconfig.vdf` read-only for display/context.
+- [x] Match installed games to imported ProtonDB records.
 - [x] Detect local system profile read-only: GPU/vendor/driver, CPU, RAM, distro, kernel, session/desktop, and relevant Steam/Proton context where feasible.
-- [ ] Normalize detected profile into the same comparison categories used for ProtonDB report `systemInfo`.
+- [x] Normalize detected profile into the same comparison categories used for ProtonDB report `systemInfo`.
 - [x] Expose scan and system profile results to core without UI dependencies.
 - [x] Add Steam parser and system-detection fixtures/tests so the PoC does not depend on the developer's real library/machine for tests.
 

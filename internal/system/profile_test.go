@@ -1,6 +1,10 @@
 package system
 
-import "testing"
+import (
+	"testing"
+
+	"protonsage/internal/core"
+)
 
 func TestParseOSRelease(t *testing.T) {
 	fields := ParseOSRelease("NAME=\"Nobara Linux\"\nVERSION_ID=40\nPRETTY_NAME=\"Nobara Linux 40\"\n")
@@ -33,5 +37,23 @@ func TestParseLspciGPU(t *testing.T) {
 	}
 	if model != "NVIDIA Corporation AD104 [GeForce RTX 4070 SUPER] (rev a1)" {
 		t.Fatalf("model = %q", model)
+	}
+}
+
+func TestProfileNormalizationUsesParsedFields(t *testing.T) {
+	profile := core.SystemProfile{
+		GPUVendor: "AMD",
+		GPUModel:  "Radeon RX 7800 XT",
+		Distro:    "Ubuntu 24.04",
+		Raw: map[string]string{
+			"os-release.ID": "ubuntu",
+		},
+	}
+	profile.Normalized = core.NormalizeSystemProfile(profile)
+	if profile.Normalized.GPUVendor != "amd" {
+		t.Fatalf("normalized GPU vendor = %q", profile.Normalized.GPUVendor)
+	}
+	if profile.Normalized.DistroFamily != "ubuntu" {
+		t.Fatalf("normalized distro family = %q", profile.Normalized.DistroFamily)
 	}
 }
