@@ -111,6 +111,8 @@ SuggestionCheckbox::SuggestionCheckbox(const Suggestion& s, QWidget* parent)
     }
     auto* textLabel = new QLabel(text);
     textLabel->setWordWrap(true);
+    textLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    textLabel->setMinimumWidth(0);
     textLabel->setStyleSheet("color: #e0e0e0; font-size: 12px;");
 
     layout->addWidget(m_checkbox);
@@ -120,6 +122,8 @@ SuggestionCheckbox::SuggestionCheckbox(const Suggestion& s, QWidget* parent)
                   "SuggestionCheckbox:hover { border-color: #76B900; }");
 
     connect(m_checkbox, &QPushButton::toggled, this, &SuggestionCheckbox::toggled);
+    
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 }
 
 bool SuggestionCheckbox::isChecked() const { return m_checkbox->isChecked(); }
@@ -278,6 +282,8 @@ void MainWindow::setupUI() {
     recLayout->addWidget(m_recSummary);
 
     m_suggestionsContainer = new QWidget;
+    m_suggestionsContainer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    m_suggestionsContainer->setMinimumWidth(0);
     auto* suggLayout = new QVBoxLayout(m_suggestionsContainer);
     suggLayout->setContentsMargins(0, 0, 0, 0);
     recLayout->addWidget(m_suggestionsContainer);
