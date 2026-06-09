@@ -168,6 +168,7 @@ button { cursor: pointer; border: none; background: none; }
 .workspace {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
+  align-items: start;
   gap: 16px;
   width: min(1440px, calc(100vw - 56px));
   margin: 0 auto;
@@ -175,9 +176,11 @@ button { cursor: pointer; border: none; background: none; }
 
 /* ─── Sidebar ──────────────────────────────────────────────────────── */
 .sidebar {
+  position: sticky;
+  top: 12px;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 80px);
+  height: calc(100vh - 92px);
   padding: 18px;
 }
 
@@ -366,9 +369,9 @@ button { cursor: pointer; border: none; background: none; }
 /* ─── Recommendation panel ────────────────────────────────────────── */
 .rec {
   padding: 24px;
-  overflow-y: auto;
-  max-height: calc(100vh - 80px);
-  contain: layout paint;
+  overflow: visible;
+  max-height: none;
+  contain: layout;
   isolation: isolate;
 }
 
@@ -812,23 +815,19 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 /* ─── Scrollbar ────────────────────────────────────────────────────── */
-.sidebar__list::-webkit-scrollbar,
-.rec::-webkit-scrollbar {
+.sidebar__list::-webkit-scrollbar {
   width: 6px;
 }
 
-.sidebar__list::-webkit-scrollbar-track,
-.rec::-webkit-scrollbar-track {
+.sidebar__list::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.sidebar__list::-webkit-scrollbar-thumb,
-.rec::-webkit-scrollbar-thumb {
+.sidebar__list::-webkit-scrollbar-thumb {
   background: rgba(255,255,255,0.1);
   border-radius: 3px;
 }
 
-.sidebar__list::-webkit-scrollbar-thumb:hover,
-.rec::-webkit-scrollbar-thumb:hover {
+.sidebar__list::-webkit-scrollbar-thumb:hover {
   background: rgba(255,255,255,0.2);
 }
