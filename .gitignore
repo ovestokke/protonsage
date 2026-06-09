@@ -1,25 +1,16 @@
-# Go
-/bin/
+# Build
 /build/
-/dist/
-*.test
-*.out
-coverage.txt
 
-# Wails/frontend
-frontend/node_modules/
-frontend/dist/*
-!frontend/dist/.gitkeep
-frontend/src/wailsjs/
-frontend/wailsjs/
-frontend/package.json.md5
+# IDE / editors
+.DS_Store
+.idea/
+.vscode/
+CMakeFiles/
 
 # Local app data
 *.db
 *.sqlite
 *.sqlite3
 
-# Editors/OS
-.DS_Store
-.idea/
-.vscode/
+# Archive — old Go/Wails stack preserved for reference
+_archive/
