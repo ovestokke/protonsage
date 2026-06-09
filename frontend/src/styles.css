@@ -337,8 +337,8 @@ button { cursor: pointer; border: none; background: none; }
 
 .sidebar__profile-grid {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 4px 10px;
+  grid-template-columns: 1fr;
+  gap: 8px;
   font-size: 12px;
 }
 
@@ -353,9 +353,10 @@ button { cursor: pointer; border: none; background: none; }
   color: var(--text-dim);
   font-family: var(--mono);
   font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .profile-field {
@@ -623,11 +624,23 @@ button { cursor: pointer; border: none; background: none; }
   letter-spacing: 0.03em;
 }
 
+.rec__preview-error,
 .rec__conflict-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
   margin-top: 8px;
+}
+
+.rec__preview-error {
+  flex-direction: row;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 107, 95, 0.25);
+  border-radius: 12px;
+  background: var(--red-dim);
+  color: var(--red);
+  font-size: 13px;
 }
 
 .rec__conflict {

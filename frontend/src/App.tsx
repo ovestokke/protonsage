@@ -28,6 +28,7 @@ import {
   type Suggestion,
   type RankedReport,
   type Game,
+  type PreviewResult,
   getAppInfo,
   getSystemProfile,
   getDataStatus,
@@ -105,6 +106,8 @@ function App() {
   const [copied, setCopied] = useState(false)
   const [gamesError, setGamesError] = useState<string | null>(null)
   const [recError, setRecError] = useState<string | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null)
   const [showAllSuggestions, setShowAllSuggestions] = useState(false)
   const [showEvidence, setShowEvidence] = useState(false)
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -165,12 +168,27 @@ function App() {
     return () => { cancelled = true }
   }, [selectedGame])
 
-  // Compute launch preview
-  const preview = useMemo(() => {
-    if (!recommendation || selectedSuggestions.size === 0) return null
+  // Compute launch preview through the Go backend so UI composition matches CLI behavior.
+  useEffect(() => {
+    if (!recommendation || selectedSuggestions.size === 0) {
+      setPreviewResult(null)
+      setPreviewError(null)
+      return
+    }
+    let cancelled = false
     const selected = recommendation.suggestions.filter((s) => selectedSuggestions.has(s.id))
-    // For now compute locally — proper call would be async through buildLaunchPreview
-    return computePreviewLocal(selected, selectedGame?.game.existingLaunchOptions ?? '')
+    setPreviewError(null)
+    buildLaunchPreview(selected, selectedGame?.game.existingLaunchOptions ?? '')
+      .then((result) => {
+        if (!cancelled) setPreviewResult(result)
+      })
+      .catch((err: Error) => {
+        if (!cancelled) {
+          setPreviewResult(null)
+          setPreviewError(err.message ?? 'Failed to build launch preview')
+        }
+      })
+    return () => { cancelled = true }
   }, [recommendation, selectedSuggestions, selectedGame])
 
   const toggleSuggestion = useCallback((id: string) => {
@@ -346,7 +364,8 @@ function App() {
               recommendation={recommendation}
               selectedSuggestions={selectedSuggestions}
               onToggle={toggleSuggestion}
-              preview={preview}
+              preview={previewResult}
+              previewError={previewError}
               existingLaunchOptions={existingLaunchOptions ?? ''}
               copied={copied}
               onCopy={handleCopy}
@@ -380,6 +399,7 @@ function RecommendationView({
   selectedSuggestions,
   onToggle,
   preview,
+  previewError,
   existingLaunchOptions,
   copied,
   onCopy,
@@ -392,7 +412,8 @@ function RecommendationView({
   recommendation: Recommendation
   selectedSuggestions: Set<string>
   onToggle: (id: string) => void
-  preview: { text: string; applied: Suggestion[]; conflicts: string[] } | null
+  preview: PreviewResult | null
+  previewError: string | null
   existingLaunchOptions: string
   copied: boolean
   onCopy: (text: string) => void
@@ -517,6 +538,11 @@ function RecommendationView({
       </div>
 
       {/* Launch preview */}
+      {previewError && selectedSuggestions.size > 0 && (
+        <div className="rec__preview-error">
+          <AlertTriangle size={14} /> {previewError}
+        </div>
+      )}
       {preview && selectedSuggestions.size > 0 && (
         <div className="rec__section">
           <div className="rec__section-head">
@@ -527,18 +553,18 @@ function RecommendationView({
           </div>
           <div className="launch-preview">
             <div className="launch-preview__code">
-              <code>{preview.text}</code>
+              <code>{preview.preview}</code>
             </div>
             <div className="launch-preview__actions">
               <button
                 className={`button ${copied ? 'button--copied' : 'button--copy'}`}
-                onClick={() => onCopy(preview.text)}
+                onClick={() => onCopy(preview.preview)}
               >
                 <ClipboardCopy size={17} /> {copied ? 'Copied!' : 'Copy'}
               </button>
             </div>
           </div>
-          {preview.conflicts.length > 0 && (
+          {preview.conflicts && preview.conflicts.length > 0 && (
             <div className="rec__conflict-list">
               {preview.conflicts.map((c, i) => (
                 <div key={i} className="rec__conflict"><AlertTriangle size={13} /> {c}</div>
@@ -617,155 +643,5 @@ function ProfileField({ label, value }: { label: string; value: string }) {
   )
 }
 
-// ─── Local preview computation (matches Go backend logic) ────────────
-function computePreviewLocal(
-  selected: Suggestion[],
-  existing: string,
-): { text: string; applied: Suggestion[]; conflicts: string[] } | null {
-  if (selected.length === 0) return null
-
-  // Extract env vars, wrappers, game args from selected suggestions
-  const envVars: string[] = []
-  const wrappers: string[] = []
-  const gameArgs: string[] = []
-  const applied: Suggestion[] = []
-
-  for (const s of selected) {
-    const snippet = s.snippet
-    if (!snippet || snippet.toLowerCase() === '(none)' || snippet.toLowerCase() === 'none') continue
-
-    // Check for %command% or %COMMAND%
-    const cmdIdxLower = snippet.toLowerCase().indexOf('%command%')
-    if (cmdIdxLower !== -1) {
-      const cmdIdx = snippet.toLowerCase().indexOf('%command%')
-      const beforeCommand = snippet.slice(0, cmdIdx).trim()
-      const afterCommand = snippet.slice(cmdIdx + '%command%'.length).trim()
-      if (beforeCommand) {
-        // Parse as space-separated tokens for env vars and wrappers
-        const tokens = shellSplit(beforeCommand)
-        for (const t of tokens) {
-          if (t.includes('=') && /^[A-Z_]/.test(t)) envVars.push(t)
-          else wrappers.push(t)
-        }
-      }
-      if (afterCommand) gameArgs.push(afterCommand)
-      applied.push(s)
-      continue
-    }
-
-    // Pure env var
-    if (/^[A-Z_][A-Z0-9_]*=/.test(snippet)) {
-      envVars.push(snippet)
-      applied.push(s)
-      continue
-    }
-
-    // Wrapper or game arg
-    if (/^[a-z]/.test(snippet) && !snippet.includes('=')) {
-      // Could be a wrapper command or game arg
-      if (['gamemoderun', 'mangohud', 'gamescope', 'prime-run', 'game-performance', 'obs-gamecapture', 'dlss-swapper'].some((w) => snippet.toLowerCase().startsWith(w))) {
-        wrappers.push(snippet)
-      } else {
-        gameArgs.push(snippet)
-      }
-      applied.push(s)
-      continue
-    }
-
-    // Fallback — treat as game arg
-    gameArgs.push(snippet)
-    applied.push(s)
-  }
-
-  // Handle existing launch options
-  let existingEnvVars: string[] = []
-  let existingWrappers: string[] = []
-  let existingGameArgs: string[] = []
-
-  if (existing) {
-    const existingCmdIdx = existing.toLowerCase().indexOf('%command%')
-    if (existingCmdIdx !== -1) {
-      const beforeCmd = existing.slice(0, existingCmdIdx).trim()
-      const afterCmd = existing.slice(existingCmdIdx + '%command%'.length).trim()
-      if (beforeCmd) {
-        const tokens = shellSplit(beforeCmd)
-        for (const t of tokens) {
-          if (t.includes('=') && /^[A-Z_]/.test(t)) existingEnvVars.push(t)
-          else existingWrappers.push(t)
-        }
-      }
-      if (afterCmd) existingGameArgs.push(afterCmd)
-    } else {
-      // No %command% — treat as game args appended
-      existingGameArgs.push(existing)
-    }
-  }
-
-  // Detect env var conflicts
-  const envVarMap = new Map<string, string[]>()
-  const allEnvVars = [...existingEnvVars, ...envVars]
-  for (const ev of allEnvVars) {
-    const eqIdx = ev.indexOf('=')
-    if (eqIdx !== -1) {
-      const key = ev.slice(0, eqIdx)
-      const val = ev.slice(eqIdx + 1)
-      if (!envVarMap.has(key)) envVarMap.set(key, [])
-      envVarMap.get(key)!.push(val)
-    }
-  }
-  const conflicts: string[] = []
-  for (const [key, vals] of envVarMap) {
-    if (vals.length > 1) {
-      const unique = [...new Set(vals)]
-      if (unique.length > 1) {
-        conflicts.push(`Conflicting values for ${key}: ${unique.join(', ')}`)
-      }
-    }
-  }
-
-  // Compose: existing env/wrappers, new env/wrappers, %command%, existing args, new args
-  const parts: string[] = []
-  parts.push(...existingEnvVars)
-  parts.push(...envVars)
-  parts.push(...existingWrappers)
-  parts.push(...wrappers)
-  parts.push('%command%')
-  parts.push(...existingGameArgs)
-  parts.push(...gameArgs)
-
-  return {
-    text: parts.filter(Boolean).join(' '),
-    applied,
-    conflicts,
-  }
-}
-
-function shellSplit(s: string): string[] {
-  const result: string[] = []
-  let current = ''
-  let inQuote = false
-  let quoteChar = ''
-  for (const ch of s) {
-    if (inQuote) {
-      if (ch === quoteChar) {
-        inQuote = false
-        current += ch
-      } else {
-        current += ch
-      }
-    } else if (ch === '"' || ch === "'") {
-      inQuote = true
-      quoteChar = ch
-      current += ch
-    } else if (ch === ' ') {
-      if (current) result.push(current)
-      current = ''
-    } else {
-      current += ch
-    }
-  }
-  if (current) result.push(current)
-  return result
-}
 
 export default App

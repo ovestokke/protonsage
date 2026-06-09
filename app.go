@@ -13,8 +13,8 @@ import (
 
 // App is the thin Wails binding layer. Keep behavior in internal packages.
 type App struct {
-	ctx context.Context
-	svc *appsvc.Service
+	ctx    context.Context
+	svc    *appsvc.Service
 	dbPath string
 }
 
