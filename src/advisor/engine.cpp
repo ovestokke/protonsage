@@ -7,6 +7,82 @@
 
 namespace ProtonSage {
 
+// ── Suggestion metadata (label, description, category) ──────────────
+
+struct SuggestionMeta { QString label, desc, category; };
+
+static SuggestionMeta suggestionMeta(const QString& snippet) {
+    QString s = snippet.toLower().trimmed();
+    
+    // Strip %command%
+    int cmd = s.indexOf("%command%");
+    QString core = cmd >= 0 ? s.left(cmd).trimmed() : s;
+    if (core.isEmpty() && cmd >= 0) core = s.mid(cmd + 10).trimmed();
+    if (core.isEmpty()) return {"Unknown option", "", ""};
+    
+    static const QList<QPair<QString,SuggestionMeta>> table = {
+        // === Compatibility / fixes ===
+        {{"proton_enable_wayland=1"}, {"Use Wayland", "Fixes rendering and input on Wayland. Disable if you use X11.", "Compatibility"}},
+        {{"sdl_videodriver=wayland"}, {"SDL on Wayland", "Tells older SDL games to use Wayland. Fixes mouse and fullscreen.", "Compatibility"}},
+        {{"sdl_videodriver=x11"}, {"Force X11 (SDL)", "Fallback if Wayland causes issues. May fix mouse lock problems.", "Compatibility"}},
+        {{"gamescope"}, {"Gamescope wrapper", "Micro-compositor that fixes alt-tab, scaling, and HDR. Useful on multi-monitor.", "Compatibility"}},
+        {{"proton experimental"}, {"Proton Experimental", "Bleeding-edge Proton with latest fixes. Try if stable Proton fails.", "Compatibility"}},
+        {{"proton ge"}, {"Proton GE", "Community build with extra media codecs and patches. Better game compatibility.", "Compatibility"}},
+        {{"winedlloverrides"}, {"Wine DLL override", "Replaces Windows DLLs with native versions. Fixes specific game bugs.", "Compatibility"}},
+        
+        // === Performance ===
+        {{"gamemoderun"}, {"GameMode", "Tells your system to prioritize game performance over background tasks.", "Performance"}},
+        {{"game-performance"}, {"CPU performance", "Sets CPU scheduler to performance mode for this game.", "Performance"}},
+        {{"mangohud"}, {"MangoHUD overlay", "Shows FPS, GPU/CPU usage, and temps in-game. Useful for tuning.", "Performance"}},
+        {{"proton_use_ntsync=1"}, {"NTSync (faster)", "Kernel-level Windows sync. Reduces stutter on Linux 6.14+. Requires new kernel.", "Performance"}},
+        {{"dxvk_async=1"}, {"Async shaders", "Compiles shaders in background to reduce stutter. May cause visual glitches.", "Performance"}},
+        {{"dxvk_frame_rate"}, {"Frame rate cap", "Limits FPS to reduce heat, fan noise, or screen tearing.", "Performance"}},
+        {{"proton_fsr4_upgrade=1"}, {"FSR4 upgrade", "Replaces older FSR/DLSS with FSR4. Better upscaling quality on modern GPUs.", "Performance"}},
+        
+        // === NVIDIA specific ===
+        {{"proton_enable_nvapi=1"}, {"Enable DLSS / Reflex", "Enables NVIDIA DLSS, Reflex, and Frame Gen. Requires NVIDIA GPU.", "NVIDIA"}},
+        {{"prime-run"}, {"NVIDIA Prime", "Runs game on dedicated NVIDIA GPU on dual-GPU laptops.", "NVIDIA"}},
+        {{"__gl_shader_disk_cache"}, {"Shader cache size", "Increases shader cache to reduce stutter. Good for large open-world games.", "Performance"}},
+        
+        // === HDR / Display ===
+        {{"proton_enable_hdr=1"}, {"Enable HDR", "Enables HDR output. Requires HDR monitor and Wayland.", "Display"}},
+        {{"dxvk_hdr=1"}, {"DXVK HDR", "HDR support via DXVK translation layer.", "Display"}},
+        {{"enable_hdr_wsi=1"}, {"HDR window system", "Enables HDR at the window system level. Required for full HDR pipeline.", "Display"}},
+        
+        // === Quality of life ===
+        {{"nostartupmovies"}, {"Skip intro videos", "Skips splash screens and logos when launching the game.", "QoL"}},
+        {{"nomoviestartup"}, {"Skip intro videos", "Skips startup movies to get into the game faster.", "QoL"}},
+        {{"skip.*intro"}, {"Skip intros", "Skips intro sequences on game launch.", "QoL"}},
+        {{"disabl.*launcher"}, {"Disable launcher", "Skips the game's own launcher window. Goes straight to the game.", "QoL"}},
+        
+        // === Debug ===
+        {{"proton_log=1"}, {"Proton debug log", "Creates detailed Proton logs. Only enable when troubleshooting.", "Debug"}},
+        {{"proton_enable_nvapi=0"}, {"Disable DLSS/Reflex", "Turns off DLSS and Reflex. Try if you get crashes with them on.", "Compatibility"}},
+        
+        // === Workarounds / known patterns ===
+        {{"black screen"}, {"Black screen fix", "Common issue. Try Gamescope or switch between Wayland/X11.", "Fix"}},
+        {{"windowed mode"}, {"Windowed mode", "Run in window instead of fullscreen. May fix alt-tab issues.", "Fix"}},
+        {{"no tweaks required"}, {"Works out of the box", "Game runs without any special configuration needed.", "Info"}},
+        {{"works out of the box"}, {"Works out of the box", "No special configuration needed. Just install and play.", "Info"}},
+    };
+    
+    for (const auto& entry : table) {
+        QRegularExpression re(entry.first, QRegularExpression::CaseInsensitiveOption);
+        if (re.match(core).hasMatch())
+            return entry.second;
+    }
+    
+    // Fallback for unnamed env vars
+    if (core.contains('=')) {
+        QString name = core.section('=', 0, 0).toUpper();
+        for (const QString& p : {"PROTON_", "DXVK_", "VKD3D_", "RADV_", "MESA_", "__GL_", "NVIDIA_", "SDL_"})
+            if (name.startsWith(p)) name = name.mid(p.length());
+        return {name.replace('_', ' ').trimmed().toLower(), "", ""};
+    }
+    
+    return {"", "", ""};
+}
+
 // ── Hash for suggestion IDs ──────────────────────────────────────────
 
 static QString suggestionId(const QString& kind, const QString& canonical) {
@@ -180,6 +256,15 @@ static QList<Suggestion> extractFromReports(const QList<RankedReport>& ranked) {
         if (confScore >= 0.65) s.confidence = "high";
         else if (confScore >= 0.35) s.confidence = "medium";
         else s.confidence = "low";
+
+        // Human-readable metadata
+        auto meta = suggestionMeta(c.canonical);
+        s.label = meta.label;
+        s.description = meta.desc;
+        s.category = meta.category;
+
+        // Skip suggestions without a label
+        if (s.label.isEmpty() && s.kind != "launch_option") continue;
 
         suggestions.append(s);
     }

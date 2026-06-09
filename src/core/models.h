@@ -99,6 +99,9 @@ struct RankedReport {
 
 struct Suggestion {
     QString id, snippet, kind;
+    QString label;       // human-readable name
+    QString description;  // what it does, when to use
+    QString category;     // "Recommended", "Performance", "Compatibility", "Debug"
     QList<Citation> sources;
     int occurrences = 0;
     double recencyScore = 0, systemSimilarity = 0;

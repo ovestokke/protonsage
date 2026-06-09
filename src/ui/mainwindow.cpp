@@ -15,68 +15,7 @@
 
 namespace ProtonSage {
 
-// ── Human-readable label for launch options ──────────────────────────
-
-static QString friendlyLabel(const QString& snippet) {
-    QString lower = snippet.toLower().trimmed();
-    
-    // Strip %command%
-    QString s = lower;
-    int cmd = s.indexOf("%command%");
-    if (cmd >= 0) s = s.left(cmd).trimmed();
-    if (s.isEmpty()) {
-        s = lower.mid(cmd + 10).trimmed();
-        if (s.length() > 30) return QString(); // too long, skip
-        if (!s.isEmpty()) return "Add argument: -" + s.replace('-', ' ');
-        return QString();
-    }
-    
-    // Skip obvious garbage
-    if (s.length() > 80) return QString();
-    if (s == "none" || s == "(none)" || s.startsWith("verdict:") || s.startsWith("windowing")) return QString();
-    
-    // Map common tokens to human labels
-    QMap<QString,QString> labels;
-    labels["proton_enable_wayland=1"] = "Enable Wayland support";
-    labels["proton_use_ntsync=1"] = "Enable NTSync (kernel sync)";
-    labels["proton_enable_nvapi=1"] = "Enable DLSS / Reflex (NVAPI)";
-    labels["proton_enable_hdr=1"] = "Enable HDR";
-    labels["proton_log=1"] = "Enable debug logging";
-    labels["proton_fsr4_upgrade=1"] = "Upgrade to FSR4";
-    labels["proton_hide_nvidia_gpu=1"] = "Hide NVIDIA GPU";
-    labels["proton_hide_nvidia_gpu=0"] = "Show NVIDIA GPU";
-    labels["dxvk_async=1"] = "Async shader compile (DXVK)";
-    labels["dxvk_hdr=1"] = "HDR via DXVK";
-    labels["dxvk_frame_rate"] = "Limit frame rate";
-    labels["enable_hdr_wsi=1"] = "HDR WSI support";
-    labels["mangohud=1"] = "Show MangoHUD overlay";
-    labels["sdl_videodriver"] = "SDL video driver";
-    labels["__gl_shader_disk_cache"] = "Shader disk cache";
-    labels["gamemoderun"] = "GameMode performance boost";
-    labels["mangohud"] = "MangoHUD overlay";
-    labels["gamescope"] = "Gamescope compositor";
-    labels["prime-run"] = "NVIDIA Prime offload";
-    labels["obs-gamecapture"] = "OBS capture";
-    labels["game-performance"] = "CPU performance mode";
-    labels["nostartupmovies"] = "Skip intro videos";
-    labels["nomoviestartup"] = "Skip intro videos";
-    
-    for (auto it = labels.begin(); it != labels.end(); ++it) {
-        if (s.contains(it.key())) return it.value();
-    }
-    
-    // Generic: show cleaned env var name
-    if (s.contains('=')) {
-        QString name = s.section('=', 0, 0).toUpper();
-        for (const QString& p : {"PROTON_", "DXVK_", "VKD3D_", "RADV_", "MESA_", "__GL_", "NVIDIA_", "SDL_"}) {
-            if (name.startsWith(p)) name = name.mid(p.length());
-        }
-        name = name.replace('_', ' ').trimmed().toLower();
-        if (!name.isEmpty()) return "Set " + name;
-    }
-    
-    return QString(); // unrecognized
-}
+// ── Suggestion display helpers ──────────────────────────────────────
 
 static QString confidenceLabel(const QString& c) {
     if (c == "high") return "Strongly recommended";
@@ -106,26 +45,33 @@ SuggestionCheckbox::SuggestionCheckbox(const Suggestion& s, QWidget* parent)
         "QPushButton { background: #1e1e1e; color: #76B900; border: 1px solid #555; border-radius: 4px; font-weight: bold; }"
         "QPushButton:checked { background: #76B900; color: #1a1a1a; }");
 
-    QString label = friendlyLabel(s.snippet);
-    if (label.isEmpty()) {
-        // Skip unrecognizable suggestions entirely
-        setVisible(false);
-        return;
+    QString labelStr = s.label.isEmpty() ? s.snippet : s.label;
+    
+    QString text = QString("<b>%1</b>").arg(labelStr.toHtmlEscaped());
+    
+    // Description
+    if (!s.description.isEmpty()) {
+        text += QString("<br><span style='color:#999; font-size:11px;'>%1</span>")
+            .arg(s.description.toHtmlEscaped());
     }
     
-    QString text = QString("<b>%1</b><br>"
-        "<span style='color:#999; font-size:10px;'>%2 · %3 reports · %4</span>")
-        .arg(label.toHtmlEscaped(),
-             confidenceLabel(s.confidence),
-             QString::number(s.occurrences),
-             simLabel(s.systemSimilarity));
+    // Meta line: confidence, reports, hardware match, category badge
+    QStringList metaItems;
+    metaItems << confidenceLabel(s.confidence);
+    metaItems << QString("%1 reports").arg(s.occurrences);
+    metaItems << simLabel(s.systemSimilarity);
+    if (!s.category.isEmpty()) {
+        metaItems << QString("<span style='color:#76B900;'>%1</span>").arg(s.category);
+    }
+    text += QString("<br><span style='color:#888; font-size:10px;'>%1</span>")
+        .arg(metaItems.join(" · "));
     
-    // Show raw snippet in tiny monospace below
-    if (s.snippet.size() < 60) {
+    // Raw snippet in tiny monospace
+    if (s.snippet.size() < 80) {
         text += QString("<br><span style='color:#555; font-size:9px; font-family:monospace;'>%1</span>")
             .arg(s.snippet.toHtmlEscaped());
     }
-    auto* textLabel = new QLabel(label);
+    auto* textLabel = new QLabel(text);
     textLabel->setWordWrap(true);
     textLabel->setStyleSheet("color: #e0e0e0; font-size: 12px;");
 
@@ -441,7 +387,7 @@ void MainWindow::showRecommendation(int appId) {
     int shown = 0;
     for (const auto& s : m_currentRec.suggestions) {
         if (s.kind == LaunchOptionKind::Diagnostic || s.kind == LaunchOptionKind::Note) continue;
-        if (friendlyLabel(s.snippet).isEmpty()) continue; // skip unrecognized
+        if (s.label.isEmpty() && s.kind != "launch_option") continue;
         if (shown++ >= 15) break;
         auto* cb = new SuggestionCheckbox(s, m_suggestionsContainer);
         qobject_cast<QVBoxLayout*>(m_suggestionsContainer->layout())->addWidget(cb);
