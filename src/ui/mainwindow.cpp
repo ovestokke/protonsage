@@ -44,11 +44,15 @@ static bool shouldPreselect(const Suggestion& s, const SystemProfile& profile) {
         return false;
     }
     
-    // NVIDIA-specific: only if NVIDIA GPU
+    // NVIDIA-specific: only if NVIDIA GPU, and only if it makes sense
     bool isNvidia = profile.gpuVendor.toLower() == "nvidia";
-    if (lower.contains("nvapi") || lower.contains("nvidia") || lower.contains("dlss")
-        || lower.contains("prime-run") || cat == "nvidia") {
-        return isNvidia;
+    if (cat == "nvidia" || lower.contains("nvapi") || lower.contains("dlss")
+        || lower.contains("prime-run")) {
+        if (!isNvidia) return false;
+        // Prime offload: only on dual-GPU laptops, not desktop
+        if (lower.contains("prime-run") || lower.contains("prime")) return false;
+        // NVAPI/DLSS: safe default on NVIDIA
+        return s.confidence != "low";
     }
     
     // HDR: skip by default (most people don't have HDR)
