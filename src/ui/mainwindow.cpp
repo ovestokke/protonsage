@@ -29,6 +29,40 @@ static QString simLabel(double sim) {
     return "Different hardware";
 }
 
+// Smart pre-selection: only auto-check suggestions that make sense for this system
+static bool shouldPreselect(const Suggestion& s, const SystemProfile& profile) {
+    QString lower = s.snippet.toLower();
+    QString cat = s.category.toLower();
+    
+    // Always pre-select "strongly recommended" with high similarity
+    if (s.confidence == "high" && s.systemSimilarity >= 0.5) return true;
+    
+    // Wayland: only if user is on Wayland
+    if (lower.contains("wayland") || lower.contains("sdl_videodriver")) {
+        if (profile.sessionType.toLower() == "wayland")
+            return lower.contains("enable_wayland") || lower.contains("sdl_videodriver=wayland");
+        return false;
+    }
+    
+    // NVIDIA-specific: only if NVIDIA GPU
+    bool isNvidia = profile.gpuVendor.toLower() == "nvidia";
+    if (lower.contains("nvapi") || lower.contains("nvidia") || lower.contains("dlss")
+        || lower.contains("prime-run") || cat == "nvidia") {
+        return isNvidia;
+    }
+    
+    // HDR: skip by default (most people don't have HDR)
+    if (lower.contains("hdr") || cat == "display") return false;
+    
+    // Performance: pre-select if high confidence
+    if (cat == "performance" && s.confidence != "low") return true;
+    
+    // Compatibility fixes: only pre-select if medium+ confidence
+    if (cat == "compatibility" && s.confidence != "low") return true;
+    
+    return false;
+}
+
 // ── SuggestionCheckbox ───────────────────────────────────────────────
 
 SuggestionCheckbox::SuggestionCheckbox(const Suggestion& s, QWidget* parent)
@@ -40,7 +74,7 @@ SuggestionCheckbox::SuggestionCheckbox(const Suggestion& s, QWidget* parent)
     m_checkbox = new QPushButton(s.kind == LaunchOptionKind::Note || s.kind == LaunchOptionKind::Diagnostic ? "•" : "✓");
     m_checkbox->setFixedSize(28, 28);
     m_checkbox->setCheckable(true);
-    m_checkbox->setChecked(true);
+    m_checkbox->setChecked(false);
     m_checkbox->setStyleSheet(
         "QPushButton { background: #1e1e1e; color: #76B900; border: 1px solid #555; border-radius: 4px; font-weight: bold; }"
         "QPushButton:checked { background: #76B900; color: #1a1a1a; }");
@@ -85,6 +119,8 @@ SuggestionCheckbox::SuggestionCheckbox(const Suggestion& s, QWidget* parent)
 }
 
 bool SuggestionCheckbox::isChecked() const { return m_checkbox->isChecked(); }
+
+void SuggestionCheckbox::setChecked(bool checked) { m_checkbox->setChecked(checked); }
 
 // ── MainWindow ────────────────────────────────────────────────────────
 
@@ -390,6 +426,9 @@ void MainWindow::showRecommendation(int appId) {
         if (s.label.isEmpty() && s.kind != "launch_option") continue;
         if (shown++ >= 15) break;
         auto* cb = new SuggestionCheckbox(s, m_suggestionsContainer);
+        if (shouldPreselect(s, m_profile)) {
+            cb->setChecked(true);
+        }
         qobject_cast<QVBoxLayout*>(m_suggestionsContainer->layout())->addWidget(cb);
         m_suggestionWidgets.append(cb);
         connect(cb, &SuggestionCheckbox::toggled, this, [this]() { rebuildPreview(); });

@@ -74,6 +74,7 @@ public:
     SuggestionCheckbox(const Suggestion& s, QWidget* parent = nullptr);
     const Suggestion& suggestion() const { return m_suggestion; }
     bool isChecked() const;
+    void setChecked(bool checked);
 
 signals:
     void toggled();
