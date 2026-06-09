@@ -173,6 +173,22 @@ func (s *Service) BuildLaunchPreview(_ context.Context, selected []core.Suggesti
 	return advisor.BuildLaunchPreview(selected, existing)
 }
 
+func (s *Service) SearchGames(ctx context.Context, dbPath string, query string, limit int) ([]core.Game, error) {
+	ctx = ensureContext(ctx)
+	if strings.TrimSpace(query) == "" {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	db, err := storage.Open(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	return db.SearchGames(ctx, query, limit)
+}
+
 func (s *Service) getRecommendationForProfile(ctx context.Context, dbPath string, appid int, profile core.SystemProfile, now time.Time) (core.Recommendation, error) {
 	ctx = ensureContext(ctx)
 	if appid <= 0 {

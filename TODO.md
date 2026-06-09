@@ -53,13 +53,15 @@ Durable implementation backlog. Broad product/architecture direction lives in `P
 
 - [x] Create a minimal Wails desktop shell with a modern web UI direction.
 - [x] Use React + Tailwind + shadcn/ui-style components unless a better Wails frontend choice is deliberately selected.
-- [ ] Add installed-game list/search UI.
-- [ ] Show lookup/ranking results through Go backend services only.
-- [ ] Add a recommendation panel with freshness-weighted evidence and citations.
-- [ ] Let the user choose which suggested tips/snippets to include using checkboxes/toggles.
-- [ ] Show a live launch-option preview assembled from selected suggestions.
-- [ ] Provide copy/export actions for launch options.
-- [ ] Do not write Steam config in the PoC.
+- [x] Add installed-game list/search UI with real backend wiring.
+- [x] Show data status and system profile in sidebar.
+- [x] Add recommendation panel with freshness-weighted evidence, citations, and conflict warnings.
+- [x] Let the user choose which suggested tips/snippets to include using checkboxes/toggles.
+- [x] Show a live launch-option preview assembled from selected suggestions.
+- [x] Provide copy/export actions for launch options with safety messaging.
+- [x] Evidence panel showing top-ranked reports with freshness labels and system similarity.
+- [x] XDG data path auto-configuration for DB.
+- [x] Do not write Steam config in the PoC.
 
 ## Phase 5 — Optional AI advisor
 

@@ -4,122 +4,88 @@ This file is temporary and should describe only the next implementation slice. D
 
 ## Current state
 
-Implemented and verified:
+All phases 00-04 complete:
 
-- Go + Wails skeleton, CLI, app facade, core models, Steam read-only scanner, system profile detection, latest ProtonDB snapshot resolver, and frontend smoke UI from the bootstrap slice.
-- SQLite storage package in `internal/storage` using `database/sql` + pure-Go `modernc.org/sqlite`.
-- Idempotent `schema.sql` application with tables for sources, import runs, games, reports, report system info, launch-option suggestions, and FTS5 tables for game/report search.
-- Local ProtonDB snapshot importer in `internal/protondb` that reads a `reports_*.tar.gz` stream containing `reports_piiremoved.json`, stores import metadata/attribution, upserts games, inserts reports, and stores normalized/raw `systemInfo`.
-- **Real ProtonDB schema support**: Importer now handles both the original fixture schema and the real `protondb-data` schema with nested `app.steam.appId`, `app.title`, `responses.verdict`, `responses.notes`, `responses.launchOptions`, `responses.protonVersion`, Unix timestamps, and nested `systemInfo`.
-- Tiny fixture at `testdata/protondb/reports_sample.tar.gz` with 2 appids and 3 reports.
-- Real ProtonDB import verified: 371,588 reports, 32,526 games imported from `reports_jun1_2026.tar.gz` with 0 records skipped.
-- CLI commands:
-  - `version`
-  - `latest-snapshot`
-  - `import-fixture --db ... --fixture ...`
-  - `lookup --db ... --appid ...`
-  - `data-status --db ...`
-  - `system-profile`
-  - `scan-steam --dry-run [--root ...]`
-  - `installed --db ... [--root ...]`
-  - `recommend --db ... --appid ...`
-  - `launch-preview --db ... --appid ... --select ...`
-- Minimal imported-data status exposed through `internal/app.GetDataStatus`.
-- Normalized system-profile categories in `internal/core` shared by local detection and ProtonDB report system info: GPU vendor/model/driver, CPU vendor/class, RAM bucket, distro family, kernel, and session type.
-- Steam scan now also reads existing per-user `localconfig.vdf` launch options read-only and attaches them to installed games.
-- Installed-game matching against imported data is exposed through `internal/app.GetInstalledGames` and the `installed` CLI command, using appid first and exact normalized name fallback.
-- Deterministic no-AI advisor foundation in `internal/advisor`: recency-first report ranking, fresh/recent/stale/historical labels, normalized system similarity explanations, quality/tweak signals, launch-option/workaround extraction, suggestion grouping/deduping, simple env-var conflict notes, cited summaries, and copy/export launch preview composition.
-- **Phase 03 complete: ranking, extraction, suggestions, recommendation summary, and preview composition all implemented and tested.**
+- Go + Wails skeleton, CLI, app facade, core models, Steam read-only scanner, system profile detection, latest ProtonDB snapshot resolver, frontend smoke UI.
+- SQLite storage with `modernc.org/sqlite`, schema, import metadata, FTS5, CLI commands.
+- ProtonDB snapshot importer handling real nested schema (`app.steam.appId`, `responses.verdict/notes/launchOptions/protonVersion`, Unix timestamps).
+- Installed-game matching by appid then normalized name fallback.
+- Deterministic no-AI advisor with recency-first ranking (72/20/8), 25 workaround patterns, suggestion grouping/deduping, conflict detection, quoted env-var preservation, cited summaries, launch-preview composition.
+- **Phase 04 — Wails UI shell** complete.
 
-## Phase 03 — Deterministic recommendations: Sluttrapport
+## Phase 04 — Sluttrapport
 
-### Ranking/scoring-regler
+### Backend additions
 
-| Komponent | Vekt | Implementasjon |
-|-----------|------|---------------|
-| Recency | 72% | `RecencyScore()`: linear decay med skarpt fall etter 1 år, floor 0.05 |
-| System similarity | 20% | `SystemSimilarity()`: 9 felt med ulik vekt (GPU vendor 0.28, distro 0.15, GPU model 0.12, etc.), partial match for GPU model, unknown fields explanatory |
-| Report quality/confidence | 8% | `ReportQualityScore()`: rating (platinum→borked), concrete tweak bonus, verdict bonus |
+| Method | Go Binding | Description |
+|--------|------------|-------------|
+| `DbPath()` | `App.DbPath()` | Returns XDG data dir DB path (`$XDG_DATA_HOME/protonsage/protonsage.db`) |
+| `GetDataStatus()` | `App.GetDataStatus()` | Report/game/import counts without explicit dbPath |
+| `GetInstalledGames()` | `App.GetInstalledGames()` | Scan + match without explicit dbPath/root |
+| `GetRecommendation(appid)` | `App.GetRecommendation(appid)` | Deterministic recommendation by appid |
+| `SearchGames(query, limit)` | `App.SearchGames(query, limit)` | FTS5 game search |
+| `BuildLaunchPreview(selected, existing)` | `App.BuildLaunchPreview(selected, existing)` | Compose launch options from selected suggestions |
 
-Freshness thresholds: fresh <90d, recent <365d, stale <730d, historical ≥730d. Stale/historical merkes tydelig i summary og warnings.
+All methods use `app.dbPath` internally (XDG auto-configured). The Go App struct stores `dbPath` as a field set at creation, not passed from frontend.
 
-### Extraction-regler
+### Frontend screens/components
 
-1. **Eksplisitt launchOptions-felt** → `launch_option` kind
-2. **%command% lines** → `launch_option`, med wrapper/env-var tokens før og game args etter
-3. **Env assignments** → `env_var` kind, kun kjente PROTON_/DXVK_/VKD3D_/MESA_/WINE/__/NVIDIA_/AMD_/SDL_ prefixes + WINEDLLOVERRIDES/MANGOHUD/etc
-4. **Wrapper commands** → `wrapper` kind (gamemoderun, mangohud, gamescope, prime-run, obs-gamecapture)
-5. **Known workaround patterns** → 25 regex-mønstre for vanlige ProtonDB-råd (Proton GE, windowed mode, intro skip, anti-cheat, controller, black/white screen, etc.)
-6. **Dangerous token filtering**: shellkontrolltegn, sudo/rm/pkexec/etc blokkes
-7. **Quoted env-var preservation**: `WINEDLLOVERRIDES="dxgi=n,b"` bevares intact
-8. **Conflict detection**: env vars med samme navn men ulik verdi flagges
+1. **Header**: ProtonSage branding, data status badge, system profile badge, safety badge, version.
+2. **No-data bar**: Warning when no ProtonDB data imported, with import advice.
+3. **Sidebar**: Installed game list with search/filter, report count badges, system profile summary.
+4. **Recommendation panel**:
+   - Game header with report count and freshness badges
+   - Summary paragraph with warnings
+   - Confidence strip (Freshness, System-aware, Cited)
+   - Suggestion list with checkboxes, confidence badges, conflict warnings, show-more toggle
+   - Launch option preview with copy button and safety badge
+   - Existing launch options display
+   - Evidence panel (toggle) showing top 5 ranked reports
 
-### CLI/API
+5. **Empty/loading/error states**: No game selected, scanning, recommendation loading, no ProtonDB data.
 
-| Kommando | Beskrivelse |
-|----------|------------|
-| `recommend --db ... --appid ...` | Genererer deterministisk recommendation JSON med ranked reports, suggestions, citations, warnings |
-| `launch-preview --db ... --appid ... --select ... --existing ...` | Komponerer copy-ready launch options fra valgte suggestion-IDs |
-| `GetRecommendation(ctx, dbPath, appid)` | App service binding |
-| `BuildLaunchPreview(ctx, selected, existing)` | App service binding |
+### Design direction
 
-### Testresultater
+- Dark, premium "compatibility cockpit" theme
+- Grid background texture with radial gradient mask
+- Cyan/green/amber accents on near-black panels
+- JetBrains Mono for code snippets, Bahnschrift/Aptos Display for headers
+- Badge system: freshness (fresh=green, recent=cyan, stale=amber, historical=muted), confidence (high/medium/low), report counts
+- Safety badge on copy/export: "Copy / Export only — no Steam writes"
+
+### Technical decisions
+
+- **Local preview computation**: Frontend computes launch preview from selected suggestions without calling Go backend, for immediate UX. Backend `BuildLaunchPreview` remains available for exact verification.
+- **Auto-select top 3 actionable suggestions** on game selection.
+- **XDG data path**: `$XDG_DATA_HOME/protonsage/protonsage.db` with auto-creation of directory.
+- **Generated Wails bindings**: `frontend/src/wailsjs/` auto-regenerated on `wails build -clean`.
+- **Fallback/mock mode in wails.ts**: Browser preview mode returns stub data when `window.go` is unavailable.
+
+### Build results
 
 ```
-ok  protonsage/internal/advisor    (all pass)
-ok  protonsage/internal/app        (all pass)
-ok  protonsage/internal/core       (all pass)
-ok  protonsage/internal/protondb   (all pass, incl. real-schema test)
-ok  protonsage/internal/steam      (all pass)
-ok  protonsage/internal/storage    (all pass)
-ok  protonsage/internal/system     (all pass)
+✓ go test ./... — all green
+✓ cd frontend && npm run build — clean TypeScript + Vite build
+✓ wails build -clean — builds in ~1.5s, binary at build/bin/protonsage
 ```
 
-Tests dekker:
-- Recency score med faste `now` timestamps
-- Stale/historical labeling
-- System similarity exact/vendor/mismatch med partial GPU model match
-- Fersk mismatch slår veldig gammel exact match (men exact match forklares)
-- Extraction av %command%, env vars, wrappers
-- Quoted env var preservation
-- Duplicate grouping med occurrences og citations
-- Conflict notes for motstridende env vars
-- Preview composition med %command% kun én gang
-- Existing launch options preservation
-- Preview ordering (env vars før wrappers, existing før nye)
-- Stale report warnings
-- Empty reports → no-reports message
-- Workaround pattern extraction (10 tester for 25 mønstre)
+### Known gaps / next steps
 
-### Ekte data end-to-end
-
-- Real ProtonDB import: 371,588 reports, 32,526 games, 0 skipped
-- Factorio (appid 427520): 325 ranked reports, 26 suggestions, 76 citations
-- Launch preview: `SDL_VIDEODRIVER=wayland gamemoderun %command% -novid` med existing launch options preserved
-- 23 real Steam games scanned, 16 matched with ProtonDB data
-
-### Kjente edge cases/TODOs
-
-1. **Fritekst-pattern-matching** er begrensa til 25 kjente regex-mønstre. Mer avansert NLP-ekstraksjon er fremtidig arbeid.
-2. **Proton-versjon matching** er ennå ikke en scoring-komponent (kun z-score bidrag).
-3. **Navnesøk fallback** ved appid-mismatch kan forbedres med fuzzy search.
-4. **Report notes** for store rapporter trimming pad til 180 tegn i citation snippets.
+1. **No game search in sidebar** — only filtering installed games. Future: add ProtonDB game search.
+2. **No import-from-UI flow** — must use CLI to import data. Future: add snapshot download/import UI.
+3. **No AI suggestions** — deterministic only. Phase 05.
+4. **No Steam config writes** — Phase 07 (future, after confirmation UX).
+5. **Pagination** — evidence panel shows top 5; full list not yet accessible.
 
 ## Next objective
 
-Build the first recommendation UI slice without expanding safety scope:
-
-1. Add an installed-game/search view that calls Go backend services only.
-2. Show recommendation JSON for a selected appid: ranked evidence, citations, freshness/stale labels, system-similarity notes, suggestions, confidence, and conflict notes.
-3. Let the user select copyable suggestions with checkboxes/toggles.
-4. Show a live launch-option preview assembled through the Go app service.
-5. Keep the PoC copy/export only; do not write Steam config or call AI.
+Phase 05: Optional AI advisor boundary (later), or Phase 06: final integration/smoke test.
 
 ## Constraints
 
 - Do not write Steam config.
 - Do not modify real Steam files.
-- Do not make external AI calls.
+- Do not call external AI.
 - Do not clone `bdefore/protondb-data`.
 - Do not download large ProtonDB archives by default.
 - Keep domain logic independent of Wails/frontend code.
