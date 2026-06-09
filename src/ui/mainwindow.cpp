@@ -98,6 +98,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
         auto optDb = Database::open(m_dbPath);
         if (optDb) {
             m_db = new Database(std::move(*optDb));
+            optDb.reset(); // prevent moved-from destructor from closing connection
         }
         m_profile = detectProfile();
         // Update system profile label

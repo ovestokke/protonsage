@@ -550,13 +550,16 @@ SystemProfile detectProfile()
         // Read-only from /sys without directory traversal
         QString gpuVendor, gpuModel, gpuDriver;
         
-        // Try /sys/class/drm/card0/device/vendor (single file read, no entryList)
-        QFile vf("/sys/class/drm/card0/device/vendor");
-        if (vf.open(QIODevice::ReadOnly)) {
-            QString vid = QString::fromUtf8(vf.readAll()).trimmed();
-            if (vid == "0x1002") gpuVendor = "AMD";
-            else if (vid == "0x10de") gpuVendor = "NVIDIA";
-            else if (vid == "0x8086") gpuVendor = "Intel";
+        // Try /sys/class/drm/cardN/device/vendor
+        for (int n = 0; n <= 9; ++n) {
+            QFile vf(QString("/sys/class/drm/card%1/device/vendor").arg(n));
+            if (vf.open(QIODevice::ReadOnly)) {
+                QString vid = QString::fromUtf8(vf.readAll()).trimmed();
+                if (vid == "0x1002") gpuVendor = "AMD";
+                else if (vid == "0x10de") gpuVendor = "NVIDIA";
+                else if (vid == "0x8086") gpuVendor = "Intel";
+                if (!gpuVendor.isEmpty()) break;
+            }
         }
         profile.gpuVendor = gpuVendor;
         profile.gpuModel  = gpuModel;
