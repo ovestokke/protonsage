@@ -98,16 +98,24 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
         auto optDb = Database::open(m_dbPath);
         if (optDb) {
             m_db = new Database(std::move(*optDb));
-            optDb.reset(); // prevent moved-from destructor from closing connection
         }
         m_profile = detectProfile();
         // Update system profile label
         if (m_sysProfileLabel) {
-            m_sysProfileLabel->setText(QString("GPU: %1  ·  %2\n%3 · %4")
-                .arg(m_profile.gpuModel.isEmpty() ? "?" : m_profile.gpuModel,
-                     m_profile.gpuDriver.isEmpty() ? "?" : m_profile.gpuDriver,
-                     m_profile.distro.isEmpty() ? "?" : m_profile.distro,
-                     m_profile.sessionType.isEmpty() ? "?" : m_profile.sessionType));
+            QStringList lines;
+            if (!m_profile.gpuVendor.isEmpty())
+                lines << QString("%1 %2").arg(m_profile.gpuVendor, m_profile.gpuModel).simplified();
+            if (!m_profile.gpuDriver.isEmpty())
+                lines << QString("Driver %1").arg(m_profile.gpuDriver);
+            if (!m_profile.cpu.isEmpty())
+                lines << m_profile.cpu;
+            if (m_profile.ramGb > 0)
+                lines << QString("RAM %1 GB").arg(m_profile.ramGb, 0, 'f', 1);
+            if (!m_profile.distro.isEmpty() || !m_profile.kernel.isEmpty())
+                lines << QString("%1 · Linux %2").arg(m_profile.distro, m_profile.kernel);
+            if (!m_profile.desktop.isEmpty() || !m_profile.sessionType.isEmpty())
+                lines << QString("%1 (%2)").arg(m_profile.desktop, m_profile.sessionType);
+            m_sysProfileLabel->setText(lines.join("\n"));
         }
         loadGames();
     });

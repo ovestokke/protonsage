@@ -26,6 +26,7 @@ std::optional<Database> Database::open(const QString& path) {
 }
 
 Database::~Database() {
+    if (m_moved) return;
     m_db.close();
     QSqlDatabase::removeDatabase("protonsage");
 }

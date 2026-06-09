@@ -27,6 +27,14 @@ public:
     static std::optional<Database> open(const QString& path);
     ~Database();
 
+    Database(Database&& other) noexcept : m_db(std::move(other.m_db)) { other.m_moved = true; }
+    Database& operator=(Database&& other) noexcept {
+        if (this != &other) { m_db = std::move(other.m_db); other.m_moved = true; }
+        return *this;
+    }
+    Database(const Database&) = delete;
+    Database& operator=(const Database&) = delete;
+
     // Status
     DataStatus status();
 
@@ -53,6 +61,7 @@ private:
     Database(QSqlDatabase db) : m_db(std::move(db)) {}
     void ensureSchema();
     QSqlDatabase m_db;
+    bool m_moved = false;
 };
 
 } // namespace ProtonSage

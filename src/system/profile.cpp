@@ -564,6 +564,52 @@ SystemProfile detectProfile()
         profile.gpuVendor = gpuVendor;
         profile.gpuModel  = gpuModel;
 
+        // GPU model name — vendor-specific paths
+        if (!gpuVendor.isEmpty() && gpuModel.isEmpty()) {
+            if (gpuVendor == "NVIDIA") {
+                QDir gpuDir("/proc/driver/nvidia/gpus");
+                for (const QString& entry : gpuDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+                    QFile infoFile(gpuDir.absoluteFilePath(entry) + "/information");
+                    if (infoFile.open(QIODevice::ReadOnly)) {
+                        QString data = QString::fromUtf8(infoFile.readAll());
+                        for (const QString& line : data.split('\n')) {
+                            if (line.startsWith("Model:")) {
+                                QString model = line.mid(6).trimmed();
+                                int geforce = model.indexOf("GeForce ");
+                                if (geforce >= 0)
+                                    model = model.mid(geforce + 8);
+                                else if (model.startsWith("NVIDIA "))
+                                    model = model.mid(7);
+                                gpuModel = model;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            } else {
+                // AMD / Intel: try driver name from uevent
+                for (int n = 0; n <= 9 && gpuModel.isEmpty(); ++n) {
+                    QFile uevent(QString("/sys/class/drm/card%1/device/uevent").arg(n));
+                    if (uevent.open(QIODevice::ReadOnly)) {
+                        QString data = QString::fromUtf8(uevent.readAll());
+                        for (const QString& line : data.split('\n')) {
+                            if (line.startsWith("DRIVER=")) {
+                                QString drv = line.mid(7).trimmed();
+                                if (drv == "amdgpu") gpuModel = "Radeon";
+                                else if (drv == "radeon") gpuModel = "Radeon";
+                                else if (drv == "i915") gpuModel = "Intel Graphics";
+                                else if (drv == "xe") gpuModel = "Intel Arc";
+                                else gpuModel = drv;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        profile.gpuModel = gpuModel;
+
         // NVIDIA driver version from /proc
         QFile nv("/proc/driver/nvidia/version");
         if (nv.open(QIODevice::ReadOnly)) {
