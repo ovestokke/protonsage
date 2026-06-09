@@ -269,6 +269,26 @@ static QList<Suggestion> extractFromReports(const QList<RankedReport>& ranked) {
         suggestions.append(s);
     }
 
+    // Merge duplicates: same label (or same snippet for unlabeled) → combine
+    QMap<QString, Suggestion> merged;
+    for (auto& s : suggestions) {
+        QString key = s.label.isEmpty() ? s.snippet : s.label;
+        if (merged.contains(key)) {
+            auto& existing = merged[key];
+            existing.occurrences += s.occurrences;
+            existing.systemSimilarity = qMax(existing.systemSimilarity, s.systemSimilarity);
+            existing.recencyScore = qMax(existing.recencyScore, s.recencyScore);
+            // Upgrade confidence if combined count is high
+            if (existing.occurrences >= 7) existing.confidence = "high";
+            else if (existing.occurrences >= 3 && existing.confidence == "low") existing.confidence = "medium";
+            // Use the shorter/cleaner snippet
+            if (s.snippet.size() < existing.snippet.size()) existing.snippet = s.snippet;
+        } else {
+            merged[key] = s;
+        }
+    }
+    suggestions = merged.values();
+
     // Sort: confidence desc, occurrences desc, recency desc, similarity desc
     std::sort(suggestions.begin(), suggestions.end(), [](const Suggestion& a, const Suggestion& b) {
         auto rank = [](const QString& c) { return c == "high" ? 3 : c == "medium" ? 2 : 1; };
