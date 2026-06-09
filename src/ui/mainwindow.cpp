@@ -110,8 +110,9 @@ SuggestionCheckbox::SuggestionCheckbox(const Suggestion& s, QWidget* parent)
             .arg(s.snippet.left(60).toHtmlEscaped());
     }
     auto* textLabel = new QLabel(text);
+    textLabel->setTextFormat(Qt::RichText);
     textLabel->setWordWrap(true);
-    textLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    textLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     textLabel->setMinimumWidth(0);
     textLabel->setStyleSheet("color: #e0e0e0; font-size: 12px;");
 
@@ -124,6 +125,7 @@ SuggestionCheckbox::SuggestionCheckbox(const Suggestion& s, QWidget* parent)
     connect(m_checkbox, &QPushButton::toggled, this, &SuggestionCheckbox::toggled);
     
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    setMinimumWidth(0);
 }
 
 bool SuggestionCheckbox::isChecked() const { return m_checkbox->isChecked(); }
