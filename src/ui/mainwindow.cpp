@@ -58,14 +58,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     QDir().mkpath(dataDir + "/protonsage");
     m_dbPath = dataDir + "/protonsage/protonsage.db";
 
-    auto optDb = Database::open(m_dbPath);
-    if (optDb) {
-        m_db = new Database(std::move(*optDb));
-    }
-
-    m_profile = detectProfile();
     setupUI();
-    loadGames();
 
     setWindowTitle("ProtonSage");
     resize(1200, 800);
@@ -99,6 +92,16 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
         QScrollArea { border: none; background: transparent; }
     )");
+
+    // Defer heavy work until event loop is running
+    QTimer::singleShot(0, this, [this]() {
+        auto optDb = Database::open(m_dbPath);
+        if (optDb) {
+            m_db = new Database(std::move(*optDb));
+        }
+        m_profile = detectProfile();
+        loadGames();
+    });
 }
 
 void MainWindow::setupUI() {
