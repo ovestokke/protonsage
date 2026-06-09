@@ -1,19 +1,15 @@
 # ProtonSage UI fixes TODO
 
-## 1. System profile — ✅ fixed
-- [x] GPU: viser "NVIDIA RTX 4070 Ti SUPER · driver 610.43.02"
-- [x] CPU: viser "AMD Ryzen 7 9800X3D 8-Core Processor"
-- [x] RAM: viser "62.4 GB"
-- [x] OS: viser "CachyOS · Linux 7.0.10-2-cachyos"
-- [x] DE: viser "niri (wayland)"
-- [x] AMD/Intel GPU support lagt til
+## 1. System profile — ✅ done
 
-## 2. Recommendation suggestions — test nå
-- [x] Fjernet 200-tegns kontekst rundt %command% → én linje
-- [x] Filtrerer bort verdict/windowingfaults/stabilityfaults linjer
-- [x] Human-readable labels (Wayland support, MangoHUD overlay, etc.)
-- [ ] Må testes med ekte data — velg Factorio eller Borderlands 4
+## 2. Recommendation suggestions — improve filters and labels
+- [x] %command% extraction: line-only, not 200 chars
+- [x] Filter out verdict/windowingfaults lines  
+- [ ] Confidence labels: "high"→"Strongly recommended", "medium"→"Recommended", "low"→"Try if needed"
+- [ ] "sim X%" → "from similar systems" / "from different hardware"
+- [ ] "9x" → "12 reports" (human readable)
+- [ ] Raw env var shown only on hover/secondary line
+- [ ] Filter out junk: "(none)", empty snippets, SteamDeck env vars, random old tokens
+- [ ] Filter: skip suggestions that look like full sentences (>50 chars with spaces)
 
-## 3. Launch preview — må verifiseres
-- [ ] Sjekk at preview ikke viser hele rapport-tekst
-- [ ] Sjekk at copy-knapp fungerer
+## 3. Launch preview — ✅ done
