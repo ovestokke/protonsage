@@ -102,11 +102,14 @@ static QList<Suggestion> extractFromReports(const QList<RankedReport>& ranked) {
         static QRegularExpression cmdRe("%command%", QRegularExpression::CaseInsensitiveOption);
         int cmdPos = searchText.indexOf(cmdRe);
         if (cmdPos >= 0) {
-            // Grab surrounding text
-            int start = qMax(0, cmdPos - 200);
-            int end = qMin(searchText.size(), cmdPos + 200);
-            QString ctx = searchText.mid(start, end - start).simplified();
-            if (ctx.size() > 5) {
+            // Grab only the current line, not ±200 chars of surrounding text
+            int lineStart = searchText.lastIndexOf('\n', cmdPos);
+            if (lineStart < 0) lineStart = 0; else lineStart++;
+            int lineEnd = searchText.indexOf('\n', cmdPos);
+            if (lineEnd < 0) lineEnd = searchText.size();
+            QString ctx = searchText.mid(lineStart, lineEnd - lineStart).trimmed();
+            if (ctx.size() > 5 && !ctx.contains("verdict:") && !ctx.contains("windowingfaults:")
+                && !ctx.contains("stabilityfaults:") && !ctx.contains("performancefaults:")) {
                 QString canonical = ctx.toLower();
                 auto key = qMakePair(QString("launch_option"), canonical);
                 auto& c = candidates[key];

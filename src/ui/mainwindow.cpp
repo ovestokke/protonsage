@@ -15,6 +15,78 @@
 
 namespace ProtonSage {
 
+// ── Human-readable label for launch options ──────────────────────────
+
+static QString friendlyLabel(const QString& snippet) {
+    QString lower = snippet.toLower().trimmed();
+    
+    // Strip %command% suffix for cleaner display
+    QString s = lower;
+    int cmd = s.indexOf("%command%");
+    if (cmd >= 0) s = s.left(cmd).trimmed();
+    if (s.isEmpty()) {
+        // Only game args after %command%
+        s = lower.mid(cmd + 10).trimmed();
+        if (!s.isEmpty()) return "Add game arguments: " + s;
+        return "Launch options";
+    }
+    
+    // Map common env vars to labels
+    QMap<QString,QString> labels;
+    labels["proton_enable_wayland=1"] = "Wayland support";
+    labels["proton_enable_wayland=0"] = "Disable Wayland";
+    labels["proton_use_ntsync=1"] = "NTSync synchronization";
+    labels["proton_enable_nvapi=1"] = "NVIDIA NVAPI / DLSS";
+    labels["proton_enable_nvapi=0"] = "Disable NVAPI";
+    labels["proton_enable_hdr=1"] = "HDR support";
+    labels["proton_log=1"] = "Debug logging";
+    labels["proton_fsr4_upgrade=1"] = "FSR4 upscaling upgrade";
+    labels["proton_hide_nvidia_gpu=1"] = "Hide NVIDIA GPU";
+    labels["dxvk_async=1"] = "DXVK async compilation";
+    labels["dxvk_hdr=1"] = "DXVK HDR";
+    labels["dxvk_frame_rate"] = "Frame rate limit";
+    labels["enable_hdr_wsi=1"] = "HDR WSI";
+    labels["mangohud=1"] = "MangoHUD overlay";
+    labels["winedlloverrides"] = "Wine DLL overrides";
+    labels["sdl_videodriver"] = "SDL video driver";
+    labels["__gl_shader_disk_cache"] = "Shader cache";
+    labels["_force-wayland"] = "Force Wayland";
+    labels["gamemoderun"] = "GameMode optimizations";
+    labels["mangohud"] = "MangoHUD performance overlay";
+    labels["gamescope"] = "Gamescope compositor";
+    labels["prime-run"] = "NVIDIA Prime offload";
+    labels["obs-gamecapture"] = "OBS game capture";
+    labels["game-performance"] = "CPU performance mode";
+    labels["dlss-swapper"] = "DLSS version swapper";
+    labels["nostartupmovies"] = "Skip intro videos";
+    labels["nostartupmovies"] = "Skip startup movies";
+    labels["nomoviestartup"] = "Skip intro movies";
+    
+    // Try to match the snippet
+    for (auto it = labels.begin(); it != labels.end(); ++it) {
+        if (s.contains(it.key())) return it.value();
+    }
+    
+    // Generic env var: show simplified
+    if (s.contains('=')) {
+        QString name = s.section('=', 0, 0).toUpper();
+        // Strip common prefixes
+        for (const QString& p : {"PROTON_", "DXVK_", "VKD3D_", "RADV_", "MESA_", "__GL_"}) {
+            if (name.startsWith(p)) name = name.mid(p.length());
+        }
+        return name.replace('_', ' ').toLower();
+    }
+    
+    // Wrapper or game arg
+    if (!s.isEmpty()) {
+        s.replace('-', ' ');
+        if (s.length() < 30) return s;
+        return s.left(27) + "...";
+    }
+    
+    return "Setting";
+}
+
 // ── SuggestionCheckbox ───────────────────────────────────────────────
 
 SuggestionCheckbox::SuggestionCheckbox(const Suggestion& s, QWidget* parent)
@@ -31,9 +103,13 @@ SuggestionCheckbox::SuggestionCheckbox(const Suggestion& s, QWidget* parent)
         "QPushButton { background: #1e1e1e; color: #76B900; border: 1px solid #555; border-radius: 4px; font-weight: bold; }"
         "QPushButton:checked { background: #76B900; color: #1a1a1a; }");
 
-    QString label = QString("%1  <span style='color:#999; font-size:10px;'>%2 · %3× · sim %4%</span>")
-        .arg(s.snippet.toHtmlEscaped(), s.confidence, QString::number(s.occurrences),
+    QString label = QString("<b>%1</b>  <span style='color:#999; font-size:10px;'>%2 · %3× · sim %4%</span>")
+        .arg(friendlyLabel(s.snippet).toHtmlEscaped(), s.confidence, QString::number(s.occurrences),
              QString::number(static_cast<int>(s.systemSimilarity * 100)));
+    if (!s.snippet.isEmpty() && s.snippet != friendlyLabel(s.snippet)) {
+        label += QString("<br><span style='color:#666; font-size:10px; font-family:monospace;'>%1</span>")
+            .arg(s.snippet.toHtmlEscaped());
+    }
     auto* textLabel = new QLabel(label);
     textLabel->setWordWrap(true);
     textLabel->setStyleSheet("color: #e0e0e0; font-size: 12px;");
