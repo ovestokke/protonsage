@@ -37,10 +37,44 @@ void Database::ensureSchema() {
         return;
     }
     QString sql = f.readAll();
-    // Split on semicolons for individual statements
-    for (const QString& stmt : sql.split(';', Qt::SkipEmptyParts)) {
-        QString s = stmt.trimmed();
-        if (s.isEmpty() || s.startsWith("--")) continue;
+
+    // Split SQL into statements, respecting BEGIN/END blocks (used in triggers)
+    QStringList statements;
+    QString current;
+    int depth = 0;
+    for (const QString& line : sql.split('\n')) {
+        QString trimmed = line.trimmed();
+        if (trimmed.isEmpty() || trimmed.startsWith("--")) continue;
+
+        for (int i = 0; i < trimmed.size(); ++i) {
+            if (trimmed.mid(i).startsWith("BEGIN") &&
+                (i == 0 || !trimmed[i-1].isLetter()) &&
+                (i + 5 >= trimmed.size() || !trimmed[i+5].isLetter()))
+                depth++;
+            else if (trimmed.mid(i).startsWith("END") &&
+                     (i == 0 || !trimmed[i-1].isLetter()) &&
+                     (i + 3 >= trimmed.size() || !trimmed[i+3].isLetter()))
+                depth--;
+        }
+
+        bool endsWithSemicolon = trimmed.endsWith(';');
+        if (!current.isEmpty()) current += '\n';
+        current += trimmed;
+
+        if (endsWithSemicolon && depth <= 0) {
+            // Remove trailing semicolon for QSqlQuery
+            if (current.endsWith(';')) current.chop(1);
+            statements.append(current.trimmed());
+            current.clear();
+        }
+    }
+    if (!current.trimmed().isEmpty()) {
+        if (current.endsWith(';')) current.chop(1);
+        statements.append(current.trimmed());
+    }
+
+    for (const QString& s : statements) {
+        if (s.isEmpty()) continue;
         QSqlQuery q(m_db);
         if (!q.exec(s)) {
             qWarning() << "Schema error:" << q.lastError().text() << "\nSQL:" << s.left(200);
