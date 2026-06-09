@@ -104,10 +104,10 @@ SuggestionCheckbox::SuggestionCheckbox(const Suggestion& s, QWidget* parent)
     text += QString("<br><span style='color:#888; font-size:10px;'>%1</span>")
         .arg(metaItems.join(" · "));
     
-    // Raw snippet in tiny monospace
-    if (s.snippet.size() < 80) {
+    // Raw snippet in tiny monospace — truncate to avoid horizontal scroll
+    if (s.snippet.size() < 60) {
         text += QString("<br><span style='color:#555; font-size:9px; font-family:monospace;'>%1</span>")
-            .arg(s.snippet.toHtmlEscaped());
+            .arg(s.snippet.left(60).toHtmlEscaped());
     }
     auto* textLabel = new QLabel(text);
     textLabel->setWordWrap(true);
@@ -260,6 +260,7 @@ void MainWindow::setupUI() {
     m_recPage = new QWidget;
     auto* recScroll = new QScrollArea;
     recScroll->setWidgetResizable(true);
+    recScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     recScroll->setWidget(m_recPage);
 
     auto* recLayout = new QVBoxLayout(m_recPage);
