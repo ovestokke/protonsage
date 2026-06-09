@@ -94,12 +94,20 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     )");
 
     // Defer heavy work until event loop is running
-    QTimer::singleShot(0, this, [this]() {
+    QTimer::singleShot(50, this, [this]() {
         auto optDb = Database::open(m_dbPath);
         if (optDb) {
             m_db = new Database(std::move(*optDb));
         }
         m_profile = detectProfile();
+        // Update system profile label
+        if (m_sysProfileLabel) {
+            m_sysProfileLabel->setText(QString("GPU: %1  ·  %2\n%3 · %4")
+                .arg(m_profile.gpuModel.isEmpty() ? "?" : m_profile.gpuModel,
+                     m_profile.gpuDriver.isEmpty() ? "?" : m_profile.gpuDriver,
+                     m_profile.distro.isEmpty() ? "?" : m_profile.distro,
+                     m_profile.sessionType.isEmpty() ? "?" : m_profile.sessionType));
+        }
         loadGames();
     });
 }
@@ -140,14 +148,11 @@ void MainWindow::setupUI() {
     connect(m_gameList, &QListWidget::currentRowChanged, this, &MainWindow::onGameSelected);
 
     // System profile
-    auto* sysLabel = new QLabel(QString("GPU: %1  ·  %2\n%3 · %4")
-        .arg(m_profile.gpuModel.isEmpty() ? "?" : m_profile.gpuModel,
-             m_profile.gpuDriver.isEmpty() ? "?" : m_profile.gpuDriver,
-             m_profile.distro.isEmpty() ? "?" : m_profile.distro,
-             m_profile.sessionType.isEmpty() ? "?" : m_profile.sessionType));
+    auto* sysLabel = new QLabel("System: detecting...");
     sysLabel->setStyleSheet("color: #777; font-size: 10px; padding: 8px 0 0 0; line-height: 1.5;");
     sysLabel->setWordWrap(true);
     leftLayout->addWidget(sysLabel);
+    m_sysProfileLabel = sysLabel;
 
     rootLayout->addWidget(leftPanel);
 
@@ -250,6 +255,14 @@ void MainWindow::loadGames() {
             }
             m_gameItems.append(item);
         }
+    }
+
+
+    if (m_gameItems.isEmpty()) {
+        auto* placeholder = new QListWidgetItem("No Steam games found");
+        placeholder->setForeground(QColor("#555"));
+        m_gameList->addItem(placeholder);
+        return;
     }
 
     // Sort by name, games with reports first

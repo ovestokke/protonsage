@@ -63,6 +63,7 @@ private:
     QPushButton* m_copyButton = nullptr;
     QLabel* m_safetyLabel = nullptr;
     QLabel* m_existingLabel = nullptr;
+    QLabel* m_sysProfileLabel = nullptr;
 };
 
 class SuggestionCheckbox : public QWidget {

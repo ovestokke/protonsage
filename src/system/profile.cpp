@@ -6,6 +6,7 @@
 #include <QRegularExpression>
 #include <QTextStream>
 #include <QDebug>
+#include <cstdio>
 #include <cstdlib>
 
 namespace ProtonSage {
@@ -515,9 +516,13 @@ SystemProfile detectProfile()
 
     // ── Kernel ──────────────────────────────────────────────────────
     {
-        QString kernel = runOutput(3000, QStringLiteral("uname"), {QStringLiteral("-r")});
-        if (!kernel.isEmpty())
-            profile.kernel = kernel;
+        QFile f("/proc/version");
+        if (f.open(QIODevice::ReadOnly)) {
+            QString line = QString::fromUtf8(f.readAll()).trimmed();
+            // "Linux version 7.0.10-2-cachyos ..."
+            if (line.startsWith("Linux version "))
+                profile.kernel = line.mid(14).section(' ', 0, 0);
+        }
     }
 
     // ── CPU ─────────────────────────────────────────────────────────
@@ -542,25 +547,37 @@ SystemProfile detectProfile()
 
     // ── GPU ─────────────────────────────────────────────────────────
     {
-        // Primary: /sys/class/drm (no subprocess needed)
-        QString gpuVendor, gpuModel;
-        if (!detectGPUFromSysfs(gpuVendor, gpuModel)) {
-            // Fallback: lspci
-            QString lspci = runOutput(3000, QStringLiteral("lspci"));
-            if (!lspci.isEmpty())
-                parseLspciGPU(lspci, gpuVendor, gpuModel);
+        // Read-only from /sys without directory traversal
+        QString gpuVendor, gpuModel, gpuDriver;
+        
+        // Try /sys/class/drm/card0/device/vendor (single file read, no entryList)
+        QFile vf("/sys/class/drm/card0/device/vendor");
+        if (vf.open(QIODevice::ReadOnly)) {
+            QString vid = QString::fromUtf8(vf.readAll()).trimmed();
+            if (vid == "0x1002") gpuVendor = "AMD";
+            else if (vid == "0x10de") gpuVendor = "NVIDIA";
+            else if (vid == "0x8086") gpuVendor = "Intel";
         }
-
         profile.gpuVendor = gpuVendor;
         profile.gpuModel  = gpuModel;
 
-        // NVIDIA driver version
-        QString nvidiaDriver = runOutput(3000,
-            QStringLiteral("nvidia-smi"),
-            {QStringLiteral("--query-gpu=driver_version"),
-             QStringLiteral("--format=csv,noheader")});
-        if (!nvidiaDriver.isEmpty())
-            profile.gpuDriver = nvidiaDriver;
+        // NVIDIA driver version from /proc
+        QFile nv("/proc/driver/nvidia/version");
+        if (nv.open(QIODevice::ReadOnly)) {
+            QString data = QString::fromUtf8(nv.readAll());
+            for (const QString& line : data.split('\n')) {
+                if (line.contains("NVRM version:")) {
+                    QStringList parts = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+                    for (const QString& p : parts) {
+                        if (p.contains('.') && p[0].isDigit()) {
+                            profile.gpuDriver = p;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
     }
 
     // ── Session / desktop ───────────────────────────────────────────
