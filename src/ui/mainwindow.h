@@ -41,6 +41,7 @@ private:
         QString name;
         int reportCount;
         bool hasReports;
+        QString existingLaunchOptions;
     };
     QList<GameItem> m_gameItems;
 
@@ -62,6 +63,7 @@ private:
     QLabel* m_previewLabel = nullptr;
     QPushButton* m_copyButton = nullptr;
     QLabel* m_safetyLabel = nullptr;
+    QString m_existingLaunchOptions;
     QLabel* m_existingLabel = nullptr;
     QLabel* m_sysProfileLabel = nullptr;
 };

@@ -1,19 +1,19 @@
 # ProtonSage UI fixes TODO
 
-## 1. System profile — viser tull  
-- [ ] GPU: "?  610...." → må vise "NVIDIA RTX 4070 Ti SUPER · driver 570.x"
-- [ ] CPU: mangler → vis "AMD Ryzen 7 9800X3D"
-- [ ] RAM: mangler → vis "62 GB"
-- [ ] OS: viser ikke distro → vis "CachyOS"
-- [ ] DE: viser ikke → vis "niri (Wayland)"
-- [ ] Kernel: mangler → vis "Linux 7.0.10"
+## 1. System profile — ✅ fixed
+- [x] GPU: viser "NVIDIA RTX 4070 Ti SUPER · driver 610.43.02"
+- [x] CPU: viser "AMD Ryzen 7 9800X3D 8-Core Processor"
+- [x] RAM: viser "62.4 GB"
+- [x] OS: viser "CachyOS · Linux 7.0.10-2-cachyos"
+- [x] DE: viser "niri (wayland)"
+- [x] AMD/Intel GPU support lagt til
 
-## 2. Recommendation suggestions — uleselig  
-- [ ] Hver suggestion er rå launch-option-tokens, ikke menneskespråk  
-- [ ] Må vise: hva det gjør, konfidens, antall rapporter, system-likhet  
-- [ ] Eks: "Enable Wayland support" (medium, 12×, sim 55%) i stedet for "PROTON_ENABLE_WAYLAND=1"  
+## 2. Recommendation suggestions — test nå
+- [x] Fjernet 200-tegns kontekst rundt %command% → én linje
+- [x] Filtrerer bort verdict/windowingfaults/stabilityfaults linjer
+- [x] Human-readable labels (Wayland support, MangoHUD overlay, etc.)
+- [ ] Må testes med ekte data — velg Factorio eller Borderlands 4
 
-## 3. Launch preview — ubrukelig  
-- [ ] Hele notes dumpes som "suggestion" i stedet for ekte env vars  
-- [ ] Extraction parser er ødelagt — må fikse så kun %command%-linjer og env-vars ekstraheres  
-- [ ] Preview må vise kun valgte env-vars/wrappers, ikke hele rapportteksten  
+## 3. Launch preview — må verifiseres
+- [ ] Sjekk at preview ikke viser hele rapport-tekst
+- [ ] Sjekk at copy-knapp fungerer

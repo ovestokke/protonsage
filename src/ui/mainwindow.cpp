@@ -334,6 +334,7 @@ void MainWindow::loadGames() {
             GameItem item;
             item.appId = g.appId;
             item.name = g.name;
+            item.existingLaunchOptions = g.existingLaunchOptions;
             if (m_db) {
                 item.reportCount = m_db->reportCountByAppId(g.appId);
                 item.hasReports = item.reportCount > 0;
@@ -381,6 +382,7 @@ void MainWindow::onGameSelected(int row) {
     if (row < 0 || row >= m_gameItems.size()) return;
     const auto& item = m_gameItems[row];
     m_currentAppId = item.appId;
+    m_existingLaunchOptions = item.existingLaunchOptions;
     showRecommendation(item.appId);
 }
 
@@ -434,8 +436,8 @@ void MainWindow::showRecommendation(int appId) {
     rebuildPreview();
 
     // Existing launch options
-    if (!game.existingLaunchOptions.isEmpty()) {
-        m_existingLabel->setText("Current Steam: " + game.existingLaunchOptions);
+    if (!m_existingLaunchOptions.isEmpty()) {
+        m_existingLabel->setText("Current Steam: " + m_existingLaunchOptions);
     } else {
         m_existingLabel->clear();
     }
@@ -452,7 +454,7 @@ void MainWindow::rebuildPreview() {
         m_previewLabel->setText("%command%");
         return;
     }
-    auto result = buildLaunchPreview(selected, "");
+    auto result = buildLaunchPreview(selected, m_existingLaunchOptions);
     m_previewLabel->setText(result.preview);
 }
 
