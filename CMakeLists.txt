@@ -48,6 +48,7 @@ target_link_libraries(protonsage_core PUBLIC Qt6::Core Qt6::Sql Qt6::Network ${Z
 add_executable(protonsage
     src/main.cpp
     src/ui/mainwindow.cpp src/ui/mainwindow.h
+    src/ui/imagecache.cpp src/ui/imagecache.h
 )
 qt_add_resources(protonsage schema FILES src/storage/schema.sql)
 target_link_libraries(protonsage PRIVATE protonsage_core Qt6::Widgets)

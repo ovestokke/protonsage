@@ -57,6 +57,7 @@ private:
     // Recommendation page
     QWidget* m_recPage = nullptr;
     QLabel* m_recTitle = nullptr;
+    QLabel* m_gameImage = nullptr;
     QLabel* m_recSummary = nullptr;
     QWidget* m_suggestionsContainer = nullptr;
     QList<class SuggestionCheckbox*> m_suggestionWidgets;

@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "imagecache.h"
 #include "advisor/advisor.h"
 #include "steam/library.h"
 #include "steam/paths.h"
@@ -272,9 +273,21 @@ void MainWindow::setupUI() {
     auto* recLayout = new QVBoxLayout(m_recPage);
     recLayout->setContentsMargins(20, 20, 20, 20);
 
+    // Game image + title row
+    auto* headerRow = new QHBoxLayout;
+    m_gameImage = new QLabel;
+    m_gameImage->setFixedSize(184, 86);
+    m_gameImage->setStyleSheet("background: #262626; border-radius: 8px;");
+    m_gameImage->setAlignment(Qt::AlignCenter);
+    headerRow->addWidget(m_gameImage);
+    
+    auto* titleCol = new QVBoxLayout;
     m_recTitle = new QLabel;
     m_recTitle->setStyleSheet("font-size: 20px; font-weight: bold; color: #e0e0e0;");
-    recLayout->addWidget(m_recTitle);
+    titleCol->addWidget(m_recTitle);
+    titleCol->addStretch();
+    headerRow->addLayout(titleCol, 1);
+    recLayout->addLayout(headerRow);
 
     m_recSummary = new QLabel;
     m_recSummary->setWordWrap(true);
@@ -377,8 +390,22 @@ void MainWindow::loadGames() {
         } else {
             listItem->setForeground(QColor("#666"));
         }
+        // Game header image from Steam CDN
+        QPixmap icon = ImageCache::instance().gameHeader(item.appId, QSize(92, 43));
+        listItem->setIcon(QIcon(icon));
         m_gameList->addItem(listItem);
     }
+    
+    // Update icons when images load
+    connect(&ImageCache::instance(), &ImageCache::imageReady, this, [this](int appId) {
+        for (int i = 0; i < m_gameList->count(); ++i) {
+            if (m_gameList->item(i)->data(Qt::UserRole).toInt() == appId) {
+                QPixmap pm = ImageCache::instance().gameHeader(appId, QSize(92, 43));
+                m_gameList->item(i)->setIcon(QIcon(pm));
+                break;
+            }
+        }
+    });
 }
 
 void MainWindow::onSearchChanged(const QString& text) {
@@ -421,6 +448,12 @@ void MainWindow::showRecommendation(int appId) {
 
     // Title
     m_recTitle->setText(game.name);
+    
+    // Game header image
+    QPixmap header = ImageCache::instance().gameHeader(appId, QSize(184, 86));
+    m_gameImage->setPixmap(header.scaled(184, 86, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    
+    // Also update when image loads
 
     // Summary
     m_recSummary->setText(m_currentRec.summary);
