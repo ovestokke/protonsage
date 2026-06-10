@@ -106,10 +106,15 @@ SuggestionCheckbox::SuggestionCheckbox(const Suggestion& s, QWidget* parent)
     text += QString("<br><span style='color:#888; font-size:10px;'>%1</span>")
         .arg(metaItems.join(" · "));
     
-    // Raw snippet in tiny monospace — truncate to avoid horizontal scroll
-    if (s.snippet.size() < 60) {
-        text += QString("<br><span style='color:#555; font-size:9px; font-family:monospace;'>%1</span>")
-            .arg(s.snippet.left(60).toHtmlEscaped());
+    // Raw snippet in tiny monospace — normalize case
+    {
+        QString snippet = s.snippet;
+        if (snippet.contains('=')) snippet = snippet.toUpper();  // env vars uppercase
+        else snippet = snippet.toLower();  // wrappers/commands lowercase
+        if (snippet.size() < 60) {
+            text += QString("<br><span style='color:#555; font-size:9px; font-family:monospace;'>%1</span>")
+                .arg(snippet.left(60).toHtmlEscaped());
+        }
     }
     auto* textLabel = new QLabel(text);
     textLabel->setTextFormat(Qt::RichText);
@@ -589,7 +594,14 @@ void MainWindow::rebuildPreview() {
         return;
     }
     auto result = buildLaunchPreview(selected, "");
-    m_previewLabel->setText(result.preview);
+    // Normalize case: env vars uppercase, wrappers lowercase
+    QStringList normalizedTokens;
+    for (const QString& token : result.preview.split(' ', Qt::SkipEmptyParts)) {
+        if (token == "%command%") normalizedTokens << "%command%";
+        else if (token.contains('=')) normalizedTokens << token.toUpper();
+        else normalizedTokens << token.toLower();
+    }
+    m_previewLabel->setText(normalizedTokens.join(' '));
 }
 
 void MainWindow::onCopyPreview() {
