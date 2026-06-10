@@ -312,39 +312,65 @@ void MainWindow::setupUI() {
 
     recLayout->addStretch();
 
-    // Preview bar
-    auto* previewBar = new QWidget;
-    previewBar->setStyleSheet("background: #262626; border-top: 1px solid #3a3a3a;");
-    auto* previewLayout = new QHBoxLayout(previewBar);
-    previewLayout->setContentsMargins(16, 12, 16, 12);
+    recLayout->addStretch();
 
+    // ── Preview panel (bottom, resizable) ────────────────────────
+    auto* previewPanel = new QWidget;
+    previewPanel->setStyleSheet("background: #1a1a1a;");
+    auto* previewPanelLayout = new QVBoxLayout(previewPanel);
+    previewPanelLayout->setContentsMargins(12, 10, 12, 10);
+    previewPanelLayout->setSpacing(8);
+
+    // Preview header
+    auto* previewHeader = new QHBoxLayout;
+    auto* previewTitle = new QLabel("Launch options");
+    previewTitle->setStyleSheet("color: #999; font-size: 11px; font-weight: bold; text-transform: uppercase;");
+    previewHeader->addWidget(previewTitle);
+    previewHeader->addStretch();
+    auto* safetyBadge = new QLabel("Copy only — no Steam writes");
+    safetyBadge->setStyleSheet("color: #76B900; font-size: 10px;");
+    previewHeader->addWidget(safetyBadge);
+    previewPanelLayout->addLayout(previewHeader);
+
+    // Preview text
     m_previewLabel = new QLabel("%command%");
-    m_previewLabel->setStyleSheet("color: #e0e0e0; font-family: monospace; font-size: 13px;");
     m_previewLabel->setWordWrap(true);
-    previewLayout->addWidget(m_previewLabel, 1);
+    m_previewLabel->setStyleSheet(
+        "color: #e0e0e0; font-family: monospace; font-size: 13px;"
+        "background: #1e1e1e; border: 1px solid #3a3a3a; border-radius: 8px;"
+        "padding: 10px 14px;");
+    m_previewLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    previewPanelLayout->addWidget(m_previewLabel, 1);
 
-    m_copyButton = new QPushButton("Copy");
+    // Button row
+    auto* buttonRow = new QHBoxLayout;
+    m_copyButton = new QPushButton("Copy to clipboard");
     m_copyButton->setStyleSheet(
         "QPushButton { background: #76B900; color: #1a1a1a; padding: 8px 18px; "
         "border-radius: 6px; font-weight: bold; border: none; }"
         "QPushButton:hover { background: #8fd400; }");
-    previewLayout->addWidget(m_copyButton);
+    buttonRow->addWidget(m_copyButton);
     connect(m_copyButton, &QPushButton::clicked, this, &MainWindow::onCopyPreview);
-
-    m_safetyLabel = new QLabel("Copy / export only — no Steam writes");
-    m_safetyLabel->setStyleSheet("color: #76B900; font-size: 11px; padding: 0 16px;");
-    previewLayout->addWidget(m_safetyLabel);
-
+    
+    buttonRow->addStretch();
     m_existingLabel = new QLabel;
-    m_existingLabel->setStyleSheet("color: #777; font-size: 11px; padding: 4px 16px 12px;");
+    m_existingLabel->setStyleSheet("color: #777; font-size: 11px;");
     m_existingLabel->setWordWrap(true);
+    buttonRow->addWidget(m_existingLabel, 1);
+    previewPanelLayout->addLayout(buttonRow);
+
+    // ── Vertical splitter between rec area and preview ──────────
+    auto* vSplitter = new QSplitter(Qt::Vertical);
+    vSplitter->setHandleWidth(4);
+    vSplitter->setStyleSheet("QSplitter::handle { background: #3a3a3a; }");
+    vSplitter->addWidget(recScroll);
+    vSplitter->addWidget(previewPanel);
+    vSplitter->setSizes({500, 150});
 
     auto* rightLayout = new QVBoxLayout;
     rightLayout->setContentsMargins(0, 0, 0, 0);
     rightLayout->setSpacing(0);
-    rightLayout->addWidget(recScroll, 1);
-    rightLayout->addWidget(previewBar);
-    rightLayout->addWidget(m_existingLabel);
+    rightLayout->addWidget(vSplitter);
 
     auto* rightWrapper = new QWidget;
     rightWrapper->setLayout(rightLayout);

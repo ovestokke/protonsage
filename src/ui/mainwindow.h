@@ -63,7 +63,6 @@ private:
     QList<class SuggestionCheckbox*> m_suggestionWidgets;
     QLabel* m_previewLabel = nullptr;
     QPushButton* m_copyButton = nullptr;
-    QLabel* m_safetyLabel = nullptr;
     QString m_existingLaunchOptions;
     QLabel* m_existingLabel = nullptr;
     QLabel* m_sysProfileLabel = nullptr;
