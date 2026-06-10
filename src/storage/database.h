@@ -63,6 +63,17 @@ public:
     struct GameRating { int total; int yes; int clean; int pctYes() const { return total ? yes*100/total : 0; } int pctClean() const { return total ? clean*100/total : 0; } QString window; };
     GameRating gameRating(int appId);
 
+    // Recommended runtime/Proton version for an app, based on verdict='yes' reports
+    struct RecommendedRuntime {
+        QString value;      // normalized display label
+        QString rawValue;   // original value from DB (tooltip)
+        int count = 0;      // how many yes-reports had this value
+        int total = 0;      // total yes-reports considered in the window
+        QString window;     // "90 days", "365 days", "all time"
+        bool hasData = false;
+    };
+    RecommendedRuntime recommendedRuntime(int appId);
+
 private:
     Database(QSqlDatabase db) : m_db(std::move(db)) {}
     void ensureSchema();

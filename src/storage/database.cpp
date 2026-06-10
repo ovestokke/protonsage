@@ -5,6 +5,8 @@
 #include <QFile>
 #include <QDebug>
 #include <QCoreApplication>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 namespace ProtonSage {
 
@@ -339,6 +341,181 @@ Database::GameRating Database::gameRating(int appId) {
         }
     }
     return r;
+}
+
+// ── Recommended Runtime ────────────────────────────────────────────
+
+namespace {
+
+// Extract Proton version/runtime value from raw_json, checking multiple paths.
+// Priority: 1) responses.notes.variant  2) proton_version column (passed in)
+//           3) responses.protonVersion   4) responses.variant
+static QString extractProtonFromRawJson(const QString& rawJson, const QString& protonVersionFromColumn)
+{
+    QJsonDocument doc = QJsonDocument::fromJson(rawJson.toUtf8());
+    if (doc.isNull() || !doc.isObject())
+        return protonVersionFromColumn;
+
+    QJsonObject root = doc.object();
+
+    // Path 1: responses.notes.variant
+    {
+        QJsonValue respVal = root.value(QStringLiteral("responses"));
+        if (respVal.isObject()) {
+            QJsonObject responses = respVal.toObject();
+            QJsonValue notesVal = responses.value(QStringLiteral("notes"));
+            if (notesVal.isObject()) {
+                QJsonObject notes = notesVal.toObject();
+                QString variant = notes.value(QStringLiteral("variant")).toString().trimmed();
+                if (!variant.isEmpty())
+                    return variant;
+            }
+
+            // Path 2: reports.proton_version column
+            QString columnValue = protonVersionFromColumn.trimmed();
+            if (!columnValue.isEmpty())
+                return columnValue;
+
+            // Path 3: responses.protonVersion
+            QString pv = responses.value(QStringLiteral("protonVersion")).toString().trimmed();
+            if (!pv.isEmpty())
+                return pv;
+
+            // Path 4: responses.variant
+            QString v = responses.value(QStringLiteral("variant")).toString().trimmed();
+            if (!v.isEmpty())
+                return v;
+        }
+    }
+
+    return protonVersionFromColumn.trimmed();
+}
+
+// Minimal normalization for display
+static QString normalizeRuntimeLabel(const QString& raw)
+{
+    QString lower = raw.trimmed().toLower();
+    if (lower == QLatin1String("native"))
+        return QStringLiteral("Native");
+    if (lower == QLatin1String("official") || lower == QLatin1String("official proton"))
+        return QStringLiteral("Official Proton");
+    if (lower == QLatin1String("experimental") || lower == QLatin1String("proton experimental"))
+        return QStringLiteral("Proton Experimental");
+    if (lower == QLatin1String("ge") || lower == QLatin1String("proton ge") || lower == QLatin1String("proton-ge"))
+        return QStringLiteral("Proton-GE");
+    if (lower == QLatin1String("proton-cachyos"))
+        return QStringLiteral("Proton-CachyOS");
+    // For unknown values, title-case each word
+    if (!lower.isEmpty()) {
+        QStringList parts = raw.trimmed().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        for (QString& p : parts) {
+            if (!p.isEmpty() && p.at(0).isLower())
+                p[0] = p.at(0).toUpper();
+        }
+        return parts.join(QLatin1Char(' '));
+    }
+    return raw;
+}
+
+// Count occurrences of each value, returning the most common non-empty one
+static QString mostCommonValue(QMap<QString,int>& freq, int& outCount, int& outTotal)
+{
+    outCount = 0;
+    outTotal = 0;
+    QString best;
+    for (auto it = freq.constBegin(); it != freq.constEnd(); ++it) {
+        outTotal += it.value();
+        if (!it.key().isEmpty() && it.value() > outCount) {
+            outCount = it.value();
+            best = it.key();
+        }
+    }
+    return best;
+}
+
+} // anonymous namespace
+
+Database::RecommendedRuntime Database::recommendedRuntime(int appId)
+{
+    RecommendedRuntime result;
+
+    // Recency cascade same as gameRating
+    struct Window { const char* label; const char* clause; };
+    const Window windows[] = {
+        {"90 days",   "timestamp > datetime('now', '-90 days')"},
+        {"365 days",  "timestamp > datetime('now', '-365 days')"},
+        {"all time",  "1"}
+    };
+
+    for (const auto& w : windows) {
+        QSqlQuery q(m_db);
+        q.prepare(QStringLiteral(
+            "SELECT r.raw_json, r.proton_version FROM reports AS r "
+            "WHERE r.appid=? AND r.verdict='yes' AND %1 "
+            "ORDER BY r.timestamp DESC"
+        ).arg(QLatin1String(w.clause)));
+        q.addBindValue(appId);
+        if (!q.exec())
+            continue;
+
+        QMap<QString,int> freq;
+        int total = 0;
+        while (q.next()) {
+            QString rawJson = q.value(0).toString();
+            QString protonCol = q.value(1).toString();
+            QString extracted = extractProtonFromRawJson(rawJson, protonCol);
+            QString norm = extracted.toLower().trimmed();
+            // Ignore empty/noisy values
+            if (!norm.isEmpty() && norm != QLatin1String("none") && norm != QLatin1String("n/a")
+                && norm != QLatin1String("unknown") && norm != QLatin1String("default")) {
+                freq[norm]++;
+            }
+            total++;
+        }
+
+        if (total == 0)
+            continue;
+
+        int count = 0, totalInWindow = 0;
+        QString mostCommon = mostCommonValue(freq, count, totalInWindow);
+
+        // Accept this window if we have enough data, or it's the last fallback
+        if (totalInWindow >= 5 || w.label == QLatin1String("all time")) {
+            if (!mostCommon.isEmpty()) {
+                // Get the original casing from a report that had this value
+                QString displayValue;
+                q.prepare(QStringLiteral(
+                    "SELECT r.raw_json, r.proton_version FROM reports AS r "
+                    "WHERE r.appid=? AND r.verdict='yes' AND %1 "
+                    "ORDER BY r.timestamp DESC LIMIT 50"
+                ).arg(QLatin1String(w.clause)));
+                q.addBindValue(appId);
+                if (q.exec()) {
+                    while (q.next()) {
+                        QString rawJson = q.value(0).toString();
+                        QString protonCol = q.value(1).toString();
+                        QString raw = extractProtonFromRawJson(rawJson, protonCol);
+                        if (!raw.isEmpty() && raw.toLower().trimmed() == mostCommon) {
+                            displayValue = normalizeRuntimeLabel(raw);
+                            break;
+                        }
+                    }
+                }
+                if (displayValue.isEmpty())
+                    displayValue = normalizeRuntimeLabel(mostCommon);
+
+                result.value = displayValue;
+                result.rawValue = mostCommon;
+                result.count = count;
+                result.total = total;
+                result.window = QLatin1String(w.label);
+                result.hasData = !displayValue.isEmpty();
+            }
+            break;
+        }
+    }
+
+    return result;
 }
 
 } // namespace ProtonSage

@@ -271,6 +271,11 @@ void MainWindow::setupUI() {
     m_protondbLink->setStyleSheet("color: #76B900; font-size: 11px;");
     m_protondbLink->setCursor(Qt::PointingHandCursor);
     titleCol->addWidget(m_protondbLink);
+
+    m_recommendedRuntimeLabel = new QLabel;
+    m_recommendedRuntimeLabel->setStyleSheet("color: #aaa; font-size: 11px; font-weight: 500;");
+    m_recommendedRuntimeLabel->setVisible(false);
+    titleCol->addWidget(m_recommendedRuntimeLabel);
     
     titleCol->setAlignment(Qt::AlignTop);
     headerRow->addLayout(titleCol, 1);
@@ -471,6 +476,7 @@ void MainWindow::showRecommendation(int appId) {
         m_recTitle->setText(gameName);
         m_protondbLink->setText("No ProtonDB data imported");
         m_protondbLink->setStyleSheet("color: #666; font-size: 11px;");
+        m_recommendedRuntimeLabel->setVisible(false);
         m_recSummary->setText("Import a ProtonDB snapshot to see compatibility reports and launch options.");
         // Clear old suggestions
         for (auto* sw : m_suggestionWidgets) {
@@ -513,6 +519,19 @@ void MainWindow::showRecommendation(int appId) {
     m_protondbLink->setStyleSheet("color: #76B900; font-size: 11px;");
     m_protondbLink->setText(QString("<a href='https://www.protondb.com/app/%1' style='color:#76B900; text-decoration:none;'>Open on ProtonDB</a>").arg(appId));
     m_protondbLink->setOpenExternalLinks(true);
+
+    // Recommended runtime from recent yes-verdict reports
+    auto runtime = m_db->recommendedRuntime(appId);
+    if (runtime.hasData) {
+        m_recommendedRuntimeLabel->setText(
+            QStringLiteral("Recommended runtime: %1").arg(runtime.value));
+        m_recommendedRuntimeLabel->setToolTip(
+            QStringLiteral("Based on %1 of %2 %3 reports")
+                .arg(runtime.count).arg(runtime.total).arg(runtime.window));
+        m_recommendedRuntimeLabel->setVisible(true);
+    } else {
+        m_recommendedRuntimeLabel->setVisible(false);
+    }
     
     // Also fix the game name in the recommendation (was using DB title)
     game.name = gameName;

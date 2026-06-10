@@ -104,8 +104,39 @@ int main(int argc, char* argv[]) {
     }
     check(fresh + recent > 0, "Fresh/recent reports exist");
 
-    // 8. Preview
-    LOG("Test 8: Preview");
+    // 8. Recommended runtime
+    LOG("Test 8: Recommended runtime");
+    {
+        auto rt = db.recommendedRuntime(427520);
+        check(rt.hasData, "Factorio has runtime data");
+        check(rt.count > 0, "Factorio runtime has count>0");
+        check(rt.total > 0, "Factorio runtime has total>0");
+        LOG("  Factorio runtime: %s (count=%d/%d, window=%s)",
+            rt.value.toUtf8().constData(), rt.count, rt.total, rt.window.toUtf8().constData());
+
+        auto rtNative = db.recommendedRuntime(427520);
+        QString lower = rtNative.value.toLower();
+        // Factorio is reported as 'native' in many yes-verdict reports
+        if (lower.contains("native"))
+            LOG("  Runtime is Native as expected");
+        else
+            LOG("  Runtime reported as: %s", rtNative.value.toUtf8().constData());
+    }
+    // Also check a game with non-native runtime (Path of Exile 2, appid 2694490)
+    {
+        auto rtPoE = db.recommendedRuntime(2694490);
+        if (rtPoE.hasData) {
+            LOG("  Path of Exile 2 runtime: %s (count=%d/%d, window=%s)",
+                rtPoE.value.toUtf8().constData(), rtPoE.count, rtPoE.total,
+                rtPoE.window.toUtf8().constData());
+        } else {
+            LOG("  Path of Exile 2: no runtime data");
+        }
+        // Don't fail on PoE2 since data may vary
+    }
+
+    // 9. Preview
+    LOG("Test 9: Preview");
     if (!rec.suggestions.isEmpty()) {
         auto preview = ProtonSage::buildLaunchPreview(rec.suggestions.mid(0, 3));
         check(preview.preview.contains("%command%"), "Preview contains %command%");
