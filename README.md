@@ -2,7 +2,7 @@
 
 ProtonSage is a local Linux desktop utility for Steam/Proton troubleshooting. It imports ProtonDB snapshot data, scans the local Steam library read-only, ranks recent reports, and presents deterministic launch-option recommendations.
 
-Current stack: **native Qt6/C++**, SQLite, no webview/Electron/Wails.
+Current stack: **native Qt6/C++**, SQLite
 
 ## Safety status
 
