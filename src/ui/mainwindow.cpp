@@ -297,6 +297,12 @@ void MainWindow::setupUI() {
     m_recTitle = new QLabel;
     m_recTitle->setStyleSheet("font-size: 20px; font-weight: bold; color: #e0e0e0;");
     titleCol->addWidget(m_recTitle);
+    
+    m_protondbLink = new QLabel;
+    m_protondbLink->setStyleSheet("color: #76B900; font-size: 11px;");
+    m_protondbLink->setCursor(Qt::PointingHandCursor);
+    titleCol->addWidget(m_protondbLink);
+    
     titleCol->setAlignment(Qt::AlignTop);
     headerRow->addLayout(titleCol, 1);
     recLayout->addLayout(headerRow);
@@ -486,6 +492,8 @@ void MainWindow::showRecommendation(int appId) {
     auto reports = m_db->reportsByAppId(appId);
     if (reports.isEmpty()) {
         m_recTitle->setText(QString("App %1").arg(appId));
+        m_protondbLink->setText(QString("<a href='https://www.protondb.com/app/%1' style='color:#76B900;'>ProtonDB →</a>").arg(appId));
+        m_protondbLink->setOpenExternalLinks(true);
         m_recSummary->setText("No ProtonDB data imported for this game.\n\nImport a ProtonDB snapshot to see compatibility reports and launch options.");
         // Clear old suggestions
         for (auto* sw : m_suggestionWidgets) {
@@ -510,6 +518,8 @@ void MainWindow::showRecommendation(int appId) {
 
     // Title
     m_recTitle->setText(game.name);
+    m_protondbLink->setText(QString("<a href='https://www.protondb.com/app/%1' style='color:#76B900; text-decoration:none;'>ProtonDB →</a>").arg(appId));
+    m_protondbLink->setOpenExternalLinks(true);
     
     // Refresh game image (already set before data check above)
     {
