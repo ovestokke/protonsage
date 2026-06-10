@@ -50,7 +50,7 @@ add_executable(protonsage
     src/ui/mainwindow.cpp src/ui/mainwindow.h
     src/ui/imagecache.cpp src/ui/imagecache.h
 )
-qt_add_resources(protonsage schema FILES src/storage/schema.sql)
+qt_add_resources(protonsage schema PREFIX "/" FILES src/storage/schema.sql)
 target_link_libraries(protonsage PRIVATE protonsage_core Qt6::Widgets)
 
 # ── Smoke test ──────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ target_include_directories(smoke_test PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(smoke_test PRIVATE protonsage_core)
 
 add_executable(import_dedup_test src/import_dedup_test.cpp)
-qt_add_resources(import_dedup_test schema_test FILES src/storage/schema.sql)
+qt_add_resources(import_dedup_test schema_test PREFIX "/" FILES src/storage/schema.sql)
 target_include_directories(import_dedup_test PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(import_dedup_test PRIVATE protonsage_core)
 
