@@ -8,11 +8,16 @@ namespace ProtonSage {
 
 static QPixmap placeholderPixmap(const QSize& size) {
     QPixmap pm(size);
-    pm.fill(QColor("#2a2a2a"));
+    pm.fill(QColor("#1e1e1e"));
     QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing);
+    // Subtle border
+    p.setPen(QPen(QColor("#3a3a3a"), 1));
+    p.drawRoundedRect(QRectF(0.5, 0.5, size.width()-1, size.height()-1), 6, 6);
     p.setPen(QColor("#555"));
-    p.setFont(QFont("sans-serif", 10));
-    p.drawText(pm.rect(), Qt::AlignCenter, "No image");
+    p.setFont(QFont("sans-serif", 9));
+    p.drawText(pm.rect().adjusted(0, 0, 0, -size.height()/3), Qt::AlignCenter, "Steam");
+    p.drawText(pm.rect().adjusted(0, size.height()/3, 0, 0), Qt::AlignCenter, "header");
     p.end();
     return pm;
 }

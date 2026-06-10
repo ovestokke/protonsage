@@ -241,6 +241,7 @@ void MainWindow::setupUI() {
 
     // Game list
     m_gameList = new QListWidget;
+    m_gameList->setIconSize(QSize(92, 43));
     m_gameList->setStyleSheet("QListWidget { background: #1e1e1e; }");
     leftLayout->addWidget(m_gameList, 1);
     connect(m_gameList, &QListWidget::currentRowChanged, this, &MainWindow::onGameSelected);
@@ -407,12 +408,18 @@ void MainWindow::loadGames() {
     
     // Update icons when images load
     connect(&ImageCache::instance(), &ImageCache::imageReady, this, [this](int appId) {
+        // Update game list icon
         for (int i = 0; i < m_gameList->count(); ++i) {
             if (m_gameList->item(i)->data(Qt::UserRole).toInt() == appId) {
                 QPixmap pm = ImageCache::instance().gameHeader(appId, QSize(92, 43));
                 m_gameList->item(i)->setIcon(QIcon(pm));
                 break;
             }
+        }
+        // Update recommendation header image if this is the current game
+        if (m_currentAppId == appId) {
+            QPixmap pm = ImageCache::instance().gameHeader(appId, QSize(184, 86));
+            m_gameImage->setPixmap(pm.scaled(184, 86, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         }
     });
 }
@@ -438,10 +445,24 @@ void MainWindow::showRecommendation(int appId) {
         return;
     }
 
+    // Show game image even before data loads
+    {
+        QPixmap hdr = ImageCache::instance().gameHeader(appId, QSize(184, 86));
+        m_gameImage->setPixmap(hdr.scaled(184, 86, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
+
     auto reports = m_db->reportsByAppId(appId);
     if (reports.isEmpty()) {
-        m_recTitle->setText("No reports");
-        m_recSummary->setText("No ProtonDB data available for this game.");
+        m_recTitle->setText(QString("App %1").arg(appId));
+        m_recSummary->setText("No ProtonDB data imported for this game.\n\nImport a ProtonDB snapshot to see compatibility reports and launch options.");
+        // Clear old suggestions
+        for (auto* sw : m_suggestionWidgets) {
+            m_suggestionsContainer->layout()->removeWidget(sw);
+            sw->deleteLater();
+        }
+        m_suggestionWidgets.clear();
+        m_previewLabel->setText("%command%");
+        m_existingLabel->clear();
         m_rightStack->setCurrentIndex(1);
         return;
     }
@@ -458,11 +479,11 @@ void MainWindow::showRecommendation(int appId) {
     // Title
     m_recTitle->setText(game.name);
     
-    // Game header image
-    QPixmap header = ImageCache::instance().gameHeader(appId, QSize(184, 86));
-    m_gameImage->setPixmap(header.scaled(184, 86, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    
-    // Also update when image loads
+    // Refresh game image (already set before data check above)
+    {
+        QPixmap hdr = ImageCache::instance().gameHeader(appId, QSize(184, 86));
+        m_gameImage->setPixmap(hdr.scaled(184, 86, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
 
     // Summary
     m_recSummary->setText(m_currentRec.summary);
