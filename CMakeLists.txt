@@ -59,4 +59,9 @@ add_executable(smoke_test src/smoke_test.cpp)
 target_include_directories(smoke_test PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(smoke_test PRIVATE protonsage_core)
 
+add_executable(import_dedup_test src/import_dedup_test.cpp)
+qt_add_resources(import_dedup_test schema_test FILES src/storage/schema.sql)
+target_include_directories(import_dedup_test PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(import_dedup_test PRIVATE protonsage_core)
+
 install(TARGETS protonsage RUNTIME DESTINATION bin)

@@ -128,6 +128,28 @@ void Database::upsertSource(const QString& id, const QString& kind,
     q.exec();
 }
 
+void Database::clearProtonDbImportRuns() {
+    QSqlQuery q(m_db);
+    // ProtonDB snapshots are full replacements. Delete all prior ProtonDB import
+    // runs inside the active transaction; FK cascades remove reports/system_info.
+    if (!q.exec("DELETE FROM import_runs WHERE source_id IN "
+                "(SELECT id FROM sources WHERE kind='protondb-data') "
+                "OR source_id LIKE 'protondb-data:%'")) {
+        qWarning() << "clearProtonDbImportRuns failed:" << q.lastError().text();
+    }
+}
+
+void Database::purgeOrphanGames() {
+    QSqlQuery q(m_db);
+    if (!q.exec(R"(
+        DELETE FROM games
+        WHERE appid NOT IN (SELECT DISTINCT appid FROM reports)
+          AND appid NOT IN (SELECT DISTINCT appid FROM launch_option_suggestions)
+    )")) {
+        qWarning() << "purgeOrphanGames failed:" << q.lastError().text();
+    }
+}
+
 qint64 Database::createImportRun(const QString& sourceId, const QString& snapshotFilename,
                                   const QDate& snapshotDate, const QString& sourceUrl,
                                   const QString& license) {

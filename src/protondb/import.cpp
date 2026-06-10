@@ -652,7 +652,7 @@ static void collectValue(QList<RawReportRecord>& records, const QJsonValue& valu
 
     // "reports" key?
     QJsonValue reportsVal = firstValue(obj, keys({"reports"}));
-    if (!reportsVal.isUndefined()) {
+    if (!reportsVal.isUndefined() && !reportsVal.isNull()) {
         if (reportsVal.isArray()) {
             QJsonArray arr = reportsVal.toArray();
             for (int i = 0; i < arr.size(); ++i) {
@@ -931,6 +931,7 @@ ImportResult importSnapshot(Database& db, QIODevice& stream,
     do {
         db.upsertSource(meta.sourceId, QStringLiteral("protondb-data"),
                         meta.sourceUrl, meta.licenseNote);
+        db.clearProtonDbImportRuns();
 
         qint64 runId = db.createImportRun(
             meta.sourceId, meta.snapshotFilename,
@@ -971,6 +972,7 @@ ImportResult importSnapshot(Database& db, QIODevice& stream,
         if (txFailed) break;
 
         db.finishImportRun(runId, result.reportsImported, result.recordsSkipped);
+        db.purgeOrphanGames();
     } while (false);
 
     if (txFailed) {

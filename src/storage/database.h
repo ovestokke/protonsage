@@ -41,6 +41,8 @@ public:
     // Sources / Imports
     void upsertSource(const QString& id, const QString& kind, const QString& url,
                       const QString& license);
+    void clearProtonDbImportRuns();
+    void purgeOrphanGames();
     qint64 createImportRun(const QString& sourceId, const QString& snapshotFilename,
                            const QDate& snapshotDate, const QString& sourceUrl,
                            const QString& license);
