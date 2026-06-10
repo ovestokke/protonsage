@@ -5,16 +5,47 @@
 
 namespace ProtonSage {
 
+static QString realPathKey(const QString& path)
+{
+    QFileInfo info(QDir::cleanPath(path));
+    if (info.exists()) {
+        QString real = info.canonicalFilePath();
+        if (!real.isEmpty())
+            return QDir::cleanPath(real);
+    }
+    return QDir::cleanPath(path);
+}
+
 QStringList candidateRoots(const QString& home)
 {
     if (home.isEmpty())
         return {};
 
+    QString dataHome = QString::fromUtf8(qgetenv("XDG_DATA_HOME")).trimmed();
+    if (dataHome.isEmpty())
+        dataHome = home + QStringLiteral("/.local/share");
+
     QStringList roots;
     roots << home + QStringLiteral("/.steam/steam")
           << home + QStringLiteral("/.steam/root")
-          << home + QStringLiteral("/.local/share/Steam")
-          << home + QStringLiteral("/.var/app/com.valvesoftware.Steam/.local/share/Steam");
+          << QDir(dataHome).filePath(QStringLiteral("Steam"))
+          << home + QStringLiteral("/.var/app/com.valvesoftware.Steam/.local/share/Steam")
+          << home + QStringLiteral("/snap/steam/common/.local/share/Steam");
+    return roots;
+}
+
+QStringList envOverrideRoots()
+{
+    QString raw = QString::fromUtf8(qgetenv("PROTONSAGE_STEAM_ROOTS"));
+    if (raw.trimmed().isEmpty())
+        return {};
+
+    QStringList roots;
+    for (const QString& part : raw.split(QLatin1Char(':'), Qt::SkipEmptyParts)) {
+        QString path = QDir::cleanPath(part.trimmed());
+        if (!path.isEmpty())
+            roots.append(path);
+    }
     return roots;
 }
 
@@ -27,24 +58,25 @@ QStringList existingRoots()
     QSet<QString> seenReal;
     QStringList roots;
 
-    for (const QString& candidate : candidateRoots(home)) {
+    auto addIfExisting = [&](const QString& candidate) {
         QFileInfo info(candidate);
         if (!info.exists() || !info.isDir())
-            continue;
+            return;
 
-        // Resolve symlinks to deduplicate (~/.steam/steam vs ~/.steam/root etc.)
-        QString realPath = info.canonicalFilePath(); // resolves symlinks
-        if (realPath.isEmpty())
-            realPath = QDir::cleanPath(candidate);
+        QString key = realPathKey(candidate);
+        if (seenReal.contains(key))
+            return;
 
-        if (seenReal.contains(realPath))
-            continue;
+        seenReal.insert(key);
+        roots.append(QDir::cleanPath(candidate));
+    };
 
-        seenReal.insert(realPath);
-        roots.append(realPath);
-    }
+    for (const QString& candidate : envOverrideRoots())
+        addIfExisting(candidate);
+    for (const QString& candidate : candidateRoots(home))
+        addIfExisting(candidate);
 
-    return dedupePaths(roots);
+    return roots;
 }
 
 QStringList dedupePaths(const QStringList& paths)

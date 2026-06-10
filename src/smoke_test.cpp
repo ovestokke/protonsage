@@ -1,6 +1,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QTemporaryDir>
 #include <cstdio>
 #include "storage/database.h"
 #include "steam/paths.h"
@@ -23,6 +24,26 @@ int main(int argc, char* argv[]) {
 
     // 1. Steam paths
     LOG("Test 1: Steam paths");
+    auto candidates = ProtonSage::candidateRoots("/home/testuser");
+    check(candidates.size() == 5, "Steam candidate roots include native/Flatpak/Snap");
+    check(candidates.contains("/home/testuser/.steam/steam"), "Steam candidate includes ~/.steam/steam");
+    check(candidates.contains("/home/testuser/.steam/root"), "Steam candidate includes ~/.steam/root");
+    check(candidates.contains("/home/testuser/snap/steam/common/.local/share/Steam"), "Steam candidate includes Snap path");
+    check(ProtonSage::candidateRoots(QString()).isEmpty(), "Empty home has no candidates");
+
+    qunsetenv("PROTONSAGE_STEAM_ROOTS");
+    check(ProtonSage::envOverrideRoots().isEmpty(), "Steam env override absent by default");
+    qputenv("PROTONSAGE_STEAM_ROOTS", "/tmp/one:/tmp/two");
+    auto envRoots = ProtonSage::envOverrideRoots();
+    check(envRoots.size() == 2 && envRoots[0] == "/tmp/one" && envRoots[1] == "/tmp/two", "Steam env override parses colon list");
+
+    QTemporaryDir steamTmp;
+    QDir().mkpath(steamTmp.path() + "/SteamA/steamapps");
+    qputenv("PROTONSAGE_STEAM_ROOTS", steamTmp.path().toUtf8() + "/SteamA");
+    auto overrideRoots = ProtonSage::existingRoots();
+    check(!overrideRoots.isEmpty() && overrideRoots.first().endsWith("/SteamA"), "Steam env override has priority");
+    qunsetenv("PROTONSAGE_STEAM_ROOTS");
+
     auto roots = ProtonSage::existingRoots();
     check(!roots.isEmpty(), "Steam roots found");
 
