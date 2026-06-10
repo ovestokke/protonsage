@@ -492,7 +492,7 @@ void MainWindow::showRecommendation(int appId) {
     auto reports = m_db->reportsByAppId(appId);
     if (reports.isEmpty()) {
         m_recTitle->setText(QString("App %1").arg(appId));
-        m_protondbLink->setText(QString("<a href='https://www.protondb.com/app/%1' style='color:#76B900;'>ProtonDB →</a>").arg(appId));
+        m_protondbLink->setText(QString("<a href='https://www.protondb.com/app/%1' style='color:#76B900;'>Open on ProtonDB</a>").arg(appId));
         m_protondbLink->setOpenExternalLinks(true);
         m_recSummary->setText("No ProtonDB data imported for this game.\n\nImport a ProtonDB snapshot to see compatibility reports and launch options.");
         // Clear old suggestions
@@ -518,7 +518,7 @@ void MainWindow::showRecommendation(int appId) {
 
     // Title
     m_recTitle->setText(game.name);
-    m_protondbLink->setText(QString("<a href='https://www.protondb.com/app/%1' style='color:#76B900; text-decoration:none;'>ProtonDB →</a>").arg(appId));
+    m_protondbLink->setText(QString("<a href='https://www.protondb.com/app/%1' style='color:#76B900; text-decoration:none;'>Open on ProtonDB</a>").arg(appId));
     m_protondbLink->setOpenExternalLinks(true);
     
     // Refresh game image (already set before data check above)
