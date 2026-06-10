@@ -546,8 +546,8 @@ void MainWindow::showRecommendation(int appId) {
     else                       { badgeText = "Borked";       badgeColor = "#F44336"; }
     m_ratingBadge->setText(badgeText);
     m_ratingBadge->setStyleSheet(QString("font-size: 11px; font-weight: bold; padding: 3px 10px; border-radius: 10px; background: %1; color: #1a1a1a;").arg(badgeColor));
-    m_ratingBadge->setToolTip(QString("%1 recent reports: %2% recommended")
-        .arg(rating.total).arg(pct));
+    m_ratingBadge->setToolTip(QString("%1 reports (%2): %3% recommended")
+        .arg(rating.total).arg(rating.window).arg(pct));
     m_protondbLink->setStyleSheet("color: #76B900; font-size: 11px;");
     m_protondbLink->setText(QString("<a href='https://www.protondb.com/app/%1' style='color:#76B900; text-decoration:none;'>Open on ProtonDB</a>").arg(appId));
     m_protondbLink->setOpenExternalLinks(true);

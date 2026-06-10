@@ -58,7 +58,7 @@ public:
     QList<ReportRecord> reportsByAppId(int appId);
 
     // Computed rating from fault flags
-    struct GameRating { int total; int yes; int clean; int pctYes() const { return total ? yes*100/total : 0; } int pctClean() const { return total ? clean*100/total : 0; } };
+    struct GameRating { int total; int yes; int clean; int pctYes() const { return total ? yes*100/total : 0; } int pctClean() const { return total ? clean*100/total : 0; } QString window; };
     GameRating gameRating(int appId);
 
 private:

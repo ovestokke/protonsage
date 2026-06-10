@@ -295,19 +295,26 @@ QList<ReportRecord> Database::reportsByAppId(int appId) {
 Database::GameRating Database::gameRating(int appId) {
     GameRating r;
     QSqlQuery q(m_db);
-    // Last 90 days only — patches change everything
-    q.prepare(R"(
-        SELECT
-            COUNT(*),
-            SUM(CASE WHEN verdict='yes' THEN 1 ELSE 0 END)
-        FROM reports WHERE appid=?
-          AND timestamp > datetime('now', '-90 days')
-    )");
-    q.addBindValue(appId);
-    if (q.exec() && q.next()) {
-        r.total = q.value(0).toInt();
-        r.yes = q.value(1).toInt();
-        r.clean = r.yes; // same — verdict based
+    // Prefer last 90 days; fall back to 365 days; finally all reports
+    const char* windows[] = {"90 days", "365 days", "all time"};
+    const char* clauses[] = {
+        "timestamp > datetime('now', '-90 days')",
+        "timestamp > datetime('now', '-365 days')",
+        "1"
+    };
+    for (int i = 0; i < 3; ++i) {
+        q.prepare(QString(R"(
+            SELECT COUNT(*), SUM(CASE WHEN verdict='yes' THEN 1 ELSE 0 END)
+            FROM reports WHERE appid=? AND %1
+        )").arg(clauses[i]));
+        q.addBindValue(appId);
+        if (q.exec() && q.next()) {
+            r.total = q.value(0).toInt();
+            r.yes = q.value(1).toInt();
+            r.clean = r.yes;
+            r.window = windows[i];
+            if (r.total >= 5) break; // enough data
+        }
     }
     return r;
 }
