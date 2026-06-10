@@ -562,21 +562,19 @@ void MainWindow::rebuildPreview() {
     auto result = buildLaunchPreview(selected, "");
     m_previewLabel->setText(result.preview);
     
-    // Show conflicts with existing options
+    // Show conflicts with existing options in a separate label (not in preview text)
     if (!m_existingLaunchOptions.isEmpty() && !result.preview.isEmpty()) {
         QStringList warnings;
-        // Check if existing options conflict with preview
         for (const QString& token : m_existingLaunchOptions.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts)) {
             if (token.contains('=')) {
                 QString name = token.section('=', 0, 0).toUpper();
                 if (result.preview.toUpper().contains(name + "=")) {
-                    warnings << QString("⚠ Existing '%1' conflicts with selected options").arg(token);
+                    warnings << QString("⚠ '%1' conflicts with selected options").arg(token);
                 }
             }
         }
-        if (!warnings.isEmpty()) {
-            m_previewLabel->setText(result.preview + "\n\n" + warnings.join("\n"));
-        }
+        m_existingLabel->setText("Current Steam: " + m_existingLaunchOptions +
+            (warnings.isEmpty() ? "" : "\n" + warnings.join("\n")));
     }
 }
 
