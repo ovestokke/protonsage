@@ -295,22 +295,19 @@ QList<ReportRecord> Database::reportsByAppId(int appId) {
 Database::GameRating Database::gameRating(int appId) {
     GameRating r;
     QSqlQuery q(m_db);
+    // Last 90 days only — patches change everything
     q.prepare(R"(
         SELECT
             COUNT(*),
-            SUM(CASE WHEN verdict='yes' THEN 1 ELSE 0 END),
-            SUM(CASE WHEN verdict='yes'
-                AND json_extract(raw_json, '$.responses.opens') != 'no'
-                AND json_extract(raw_json, '$.responses.stabilityFaults') != 'yes'
-                AND json_extract(raw_json, '$.responses.significantBugs') != 'yes'
-                THEN 1 ELSE 0 END)
+            SUM(CASE WHEN verdict='yes' THEN 1 ELSE 0 END)
         FROM reports WHERE appid=?
+          AND timestamp > datetime('now', '-90 days')
     )");
     q.addBindValue(appId);
     if (q.exec() && q.next()) {
         r.total = q.value(0).toInt();
         r.yes = q.value(1).toInt();
-        r.clean = q.value(2).toInt();
+        r.clean = r.yes; // same — verdict based
     }
     return r;
 }

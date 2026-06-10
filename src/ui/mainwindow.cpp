@@ -534,19 +534,20 @@ void MainWindow::showRecommendation(int appId) {
     // Title
     m_recTitle->setText(gameName);
     
-    // Computed rating badge
+    // Computed rating badge (last 90 days, verdict-based)
     auto rating = m_db->gameRating(appId);
     QString badgeText, badgeColor;
-    int pct = rating.pctClean();
-    if (pct >= 95)      { badgeText = "Excellent"; badgeColor = "#4CAF50"; }
-    else if (pct >= 85) { badgeText = "Good";      badgeColor = "#8BC34A"; }
-    else if (pct >= 70) { badgeText = "Playable";   badgeColor = "#FFC107"; }
-    else if (pct >= 50) { badgeText = "Issues";     badgeColor = "#FF9800"; }
-    else               { badgeText = "Borked";      badgeColor = "#F44336"; }
+    int pct = rating.pctYes();
+    if (rating.total < 5)      { badgeText = "Few reports"; badgeColor = "#555"; }
+    else if (pct >= 95)        { badgeText = "Excellent";   badgeColor = "#4CAF50"; }
+    else if (pct >= 85)        { badgeText = "Good";        badgeColor = "#8BC34A"; }
+    else if (pct >= 70)        { badgeText = "Playable";     badgeColor = "#FFC107"; }
+    else if (pct >= 50)        { badgeText = "Issues";       badgeColor = "#FF9800"; }
+    else                       { badgeText = "Borked";       badgeColor = "#F44336"; }
     m_ratingBadge->setText(badgeText);
     m_ratingBadge->setStyleSheet(QString("font-size: 11px; font-weight: bold; padding: 3px 10px; border-radius: 10px; background: %1; color: #1a1a1a;").arg(badgeColor));
-    m_ratingBadge->setToolTip(QString("%1 reports: %2% recommended, %3% run cleanly")
-        .arg(rating.total).arg(rating.pctYes()).arg(pct));
+    m_ratingBadge->setToolTip(QString("%1 recent reports: %2% recommended")
+        .arg(rating.total).arg(pct));
     m_protondbLink->setStyleSheet("color: #76B900; font-size: 11px;");
     m_protondbLink->setText(QString("<a href='https://www.protondb.com/app/%1' style='color:#76B900; text-decoration:none;'>Open on ProtonDB</a>").arg(appId));
     m_protondbLink->setOpenExternalLinks(true);
