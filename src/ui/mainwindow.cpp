@@ -281,6 +281,7 @@ void MainWindow::setupUI() {
 
     // Game image + title row
     auto* headerRow = new QHBoxLayout;
+    headerRow->setAlignment(Qt::AlignTop);
     m_gameImage = new QLabel;
     m_gameImage->setFixedSize(184, 86);
     m_gameImage->setStyleSheet("background: #262626; border-radius: 8px;");
@@ -291,7 +292,7 @@ void MainWindow::setupUI() {
     m_recTitle = new QLabel;
     m_recTitle->setStyleSheet("font-size: 20px; font-weight: bold; color: #e0e0e0;");
     titleCol->addWidget(m_recTitle);
-    titleCol->addStretch();
+    titleCol->setAlignment(Qt::AlignTop);
     headerRow->addLayout(titleCol, 1);
     recLayout->addLayout(headerRow);
 
