@@ -558,8 +558,26 @@ void MainWindow::rebuildPreview() {
         m_previewLabel->setText("%command%");
         return;
     }
-    auto result = buildLaunchPreview(selected, m_existingLaunchOptions);
+    // Build preview WITHOUT existing options — show them separately
+    auto result = buildLaunchPreview(selected, "");
     m_previewLabel->setText(result.preview);
+    
+    // Show conflicts with existing options
+    if (!m_existingLaunchOptions.isEmpty() && !result.preview.isEmpty()) {
+        QStringList warnings;
+        // Check if existing options conflict with preview
+        for (const QString& token : m_existingLaunchOptions.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts)) {
+            if (token.contains('=')) {
+                QString name = token.section('=', 0, 0).toUpper();
+                if (result.preview.toUpper().contains(name + "=")) {
+                    warnings << QString("⚠ Existing '%1' conflicts with selected options").arg(token);
+                }
+            }
+        }
+        if (!warnings.isEmpty()) {
+            m_previewLabel->setText(result.preview + "\n\n" + warnings.join("\n"));
+        }
+    }
 }
 
 void MainWindow::onCopyPreview() {
