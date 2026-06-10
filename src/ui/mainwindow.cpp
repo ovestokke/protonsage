@@ -490,11 +490,19 @@ void MainWindow::showRecommendation(int appId) {
     }
 
     auto reports = m_db->reportsByAppId(appId);
+    
+    // Get game name from Steam scan data (m_gameItems)
+    QString gameName;
+    for (const auto& item : m_gameItems) {
+        if (item.appId == appId) { gameName = item.name; break; }
+    }
+    if (gameName.isEmpty()) gameName = QString("App %1").arg(appId);
+    
     if (reports.isEmpty()) {
-        m_recTitle->setText(QString("App %1").arg(appId));
-        m_protondbLink->setText(QString("<a href='https://www.protondb.com/app/%1' style='color:#76B900;'>Open on ProtonDB</a>").arg(appId));
-        m_protondbLink->setOpenExternalLinks(true);
-        m_recSummary->setText("No ProtonDB data imported for this game.\n\nImport a ProtonDB snapshot to see compatibility reports and launch options.");
+        m_recTitle->setText(gameName);
+        m_protondbLink->setText("No ProtonDB data imported");
+        m_protondbLink->setStyleSheet("color: #666; font-size: 11px;");
+        m_recSummary->setText("Import a ProtonDB snapshot to see compatibility reports and launch options.");
         // Clear old suggestions
         for (auto* sw : m_suggestionWidgets) {
             m_suggestionsContainer->layout()->removeWidget(sw);
@@ -517,9 +525,13 @@ void MainWindow::showRecommendation(int appId) {
     m_currentRec = generateRecommendation(game, reportList, m_profile, QDateTime::currentDateTimeUtc());
 
     // Title
-    m_recTitle->setText(game.name);
+    m_recTitle->setText(gameName);
+    m_protondbLink->setStyleSheet("color: #76B900; font-size: 11px;");
     m_protondbLink->setText(QString("<a href='https://www.protondb.com/app/%1' style='color:#76B900; text-decoration:none;'>Open on ProtonDB</a>").arg(appId));
     m_protondbLink->setOpenExternalLinks(true);
+    
+    // Also fix the game name in the recommendation (was using DB title)
+    game.name = gameName;
     
     // Refresh game image (already set before data check above)
     {
