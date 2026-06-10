@@ -9,8 +9,6 @@
 #define LOG(fmt, ...) do { fprintf(stderr, fmt "\n", ##__VA_ARGS__); fflush(stderr); } while(0)
 
 int main(int argc, char* argv[]) {
-    // Must be BEFORE QCoreApplication constructor
-    QCoreApplication::setLibraryPaths({"/usr/lib/qt6/plugins"});
     LOG("S0");
     QCoreApplication app(argc, argv);
     LOG("S1");

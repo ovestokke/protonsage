@@ -7,7 +7,6 @@
 int main(int argc, char* argv[]) {
     // Disable GTK platform theme to avoid CSS parsing warnings
     qputenv("QT_QPA_PLATFORMTHEME", "");
-    QCoreApplication::addLibraryPath("/usr/lib/qt6/plugins");
     
     // Force Fusion style to avoid broken GTK theme parsing
     if (QStyleFactory::keys().contains("Fusion"))

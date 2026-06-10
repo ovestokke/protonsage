@@ -31,44 +31,6 @@ static QString simLabel(double sim) {
     return "Different hardware";
 }
 
-// Smart pre-selection: only auto-check suggestions that make sense for this system
-static bool shouldPreselect(const Suggestion& s, const SystemProfile& profile) {
-    QString lower = s.snippet.toLower();
-    QString cat = s.category.toLower();
-    
-    // Always pre-select "strongly recommended" with high similarity
-    if (s.confidence == "high" && s.systemSimilarity >= 0.5) return true;
-    
-    // Wayland: only if user is on Wayland
-    if (lower.contains("wayland") || lower.contains("sdl_videodriver")) {
-        if (profile.sessionType.toLower() == "wayland")
-            return lower.contains("enable_wayland") || lower.contains("sdl_videodriver=wayland");
-        return false;
-    }
-    
-    // NVIDIA-specific: only if NVIDIA GPU, and only if it makes sense
-    bool isNvidia = profile.gpuVendor.toLower() == "nvidia";
-    if (cat == "nvidia" || lower.contains("nvapi") || lower.contains("dlss")
-        || lower.contains("prime-run")) {
-        if (!isNvidia) return false;
-        // Prime offload: only on dual-GPU laptops, not desktop
-        if (lower.contains("prime-run") || lower.contains("prime")) return false;
-        // NVAPI/DLSS: safe default on NVIDIA
-        return s.confidence != "low";
-    }
-    
-    // HDR: skip by default (most people don't have HDR)
-    if (lower.contains("hdr") || cat == "display") return false;
-    
-    // Performance: pre-select if high confidence
-    if (cat == "performance" && s.confidence != "low") return true;
-    
-    // Compatibility fixes: only pre-select if medium+ confidence
-    if (cat == "compatibility" && s.confidence != "low") return true;
-    
-    return false;
-}
-
 // ── SuggestionCheckbox ───────────────────────────────────────────────
 
 SuggestionCheckbox::SuggestionCheckbox(const Suggestion& s, QWidget* parent)
