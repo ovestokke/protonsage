@@ -7,6 +7,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QScrollArea>
+#include <QSplitter>
 #include <QApplication>
 #include <QClipboard>
 #include <QMessageBox>
@@ -212,9 +213,13 @@ void MainWindow::setupUI() {
     rootLayout->setContentsMargins(0, 0, 0, 0);
     rootLayout->setSpacing(0);
 
+    auto* splitter = new QSplitter(Qt::Horizontal);
+    splitter->setHandleWidth(4);
+    splitter->setStyleSheet("QSplitter::handle { background: #3a3a3a; }");
+
     // ── Left sidebar ────────────────────────────────────────────
     auto* leftPanel = new QWidget;
-    leftPanel->setFixedWidth(300);
+    leftPanel->setMinimumWidth(200);
     leftPanel->setStyleSheet("background: #1e1e1e;");
     auto* leftLayout = new QVBoxLayout(leftPanel);
     leftLayout->setContentsMargins(12, 12, 12, 12);
@@ -247,7 +252,7 @@ void MainWindow::setupUI() {
     leftLayout->addWidget(sysLabel);
     m_sysProfileLabel = sysLabel;
 
-    rootLayout->addWidget(leftPanel);
+    splitter->addWidget(leftPanel);
 
     // ── Right panel ─────────────────────────────────────────────
     m_rightStack = new QStackedWidget;
@@ -343,7 +348,11 @@ void MainWindow::setupUI() {
     rightWrapper->setLayout(rightLayout);
     m_rightStack->addWidget(rightWrapper);
 
-    rootLayout->addWidget(m_rightStack, 1);
+    splitter->addWidget(m_rightStack);
+    
+    // Set initial sizes: sidebar 280px, rest to right panel
+    splitter->setSizes({280, 800});
+    rootLayout->addWidget(splitter);
 }
 
 void MainWindow::loadGames() {
