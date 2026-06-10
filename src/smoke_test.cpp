@@ -14,6 +14,8 @@ int main(int argc, char* argv[]) {
     QCoreApplication app(argc, argv);
     LOG("S1");
 
+    const bool ci = qEnvironmentVariableIsSet("CI");
+
     int passed = 0, failed = 0;
     auto check = [&](bool ok, const char* name) {
         if (ok) { passed++; LOG("  PASS: %s", name); }
@@ -45,13 +47,21 @@ int main(int argc, char* argv[]) {
     qunsetenv("PROTONSAGE_STEAM_ROOTS");
 
     auto roots = ProtonSage::existingRoots();
-    check(!roots.isEmpty(), "Steam roots found");
+    if (ci && roots.isEmpty())
+        LOG("  SKIP: Steam roots found (not expected in CI)");
+    else
+        check(!roots.isEmpty(), "Steam roots found");
 
     // 2. DB open
     LOG("Test 2: DB open");
-    QString dbPath = QDir::homePath() + "/.local/share/protonsage/protonsage.db";
+    QString dataDir = qEnvironmentVariable("XDG_DATA_HOME", QDir::homePath() + "/.local/share");
+    QDir().mkpath(dataDir + "/protonsage");
+    QString dbPath = dataDir + "/protonsage/protonsage.db";
     QFileInfo fi(dbPath);
-    check(fi.exists(), "DB file exists");
+    if (ci && !fi.exists())
+        LOG("  SKIP: DB file exists (will be created in CI)");
+    else
+        check(fi.exists(), "DB file exists");
 
     auto dbOpt = ProtonSage::Database::open(dbPath);
     check(dbOpt.has_value(), "Database open");
@@ -61,8 +71,14 @@ int main(int argc, char* argv[]) {
     // 3. Data status
     LOG("Test 3: Data status");
     auto status = db.status();
-    check(status.reportCount > 10000, "Report count > 10000");
     LOG("  actual: reports=%d games=%d", status.reportCount, status.gameCount);
+    if (ci && status.reportCount == 0) {
+        LOG("  SKIP: real ProtonDB data checks (empty CI database)");
+        LOG("========== RESULTS ==========");
+        LOG("%d passed, %d failed", passed, failed);
+        return failed > 0 ? 1 : 0;
+    }
+    check(status.reportCount > 10000, "Report count > 10000");
     check(status.gameCount > 1000, "Game count > 1000");
 
     // 4. Game lookup

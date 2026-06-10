@@ -1,16 +1,23 @@
 # Build
 /build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+*.ninja
+.ninja_*
+
+# GitHub Actions local/runtime data
+.ci-data/
+.ci-cache/
 
 # IDE / editors
 .DS_Store
 .idea/
 .vscode/
-CMakeFiles/
 
 # Local app data
 *.db
 *.sqlite
 *.sqlite3
 
-# Archive — old Go/Wails stack preserved for reference
-_archive/

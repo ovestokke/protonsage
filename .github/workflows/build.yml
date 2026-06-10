@@ -1,0 +1,76 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-qt6:
+    name: Linux Qt6 build
+    runs-on: ubuntu-24.04
+
+    env:
+      CMAKE_BUILD_TYPE: Release
+      QT_QPA_PLATFORM: offscreen
+      XDG_DATA_HOME: ${{ github.workspace }}/.ci-data
+      XDG_CACHE_HOME: ${{ github.workspace }}/.ci-cache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            zlib1g-dev \
+            qt6-base-dev \
+            qt6-base-dev-tools \
+            libqt6sql6-sqlite \
+            libgl1-mesa-dev \
+            libxkbcommon-dev
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+
+      - name: Build
+        run: cmake --build build --config ${CMAKE_BUILD_TYPE}
+
+      - name: Import dedup regression test
+        run: ./build/import_dedup_test
+
+      - name: Smoke test with minimal CI data
+        run: |
+          mkdir -p "$XDG_DATA_HOME/protonsage" "$XDG_CACHE_HOME/protonsage"
+          ./build/smoke_test
+
+      - name: Headless GUI launch smoke
+        run: |
+          mkdir -p "$XDG_DATA_HOME/protonsage" "$XDG_CACHE_HOME/protonsage"
+          timeout 5s ./build/protonsage >/tmp/protonsage-gui.log 2>&1 || code=$?
+          if [ "${code:-0}" = "124" ]; then
+            echo "GUI launched successfully and was stopped by timeout."
+          else
+            echo "GUI exited unexpectedly with code ${code:-0}"
+            cat /tmp/protonsage-gui.log
+            exit "${code:-0}"
+          fi
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: protonsage-linux-qt6-${{ github.sha }}
+          path: |
+            build/protonsage
+            build/import_dedup_test
+            build/smoke_test
+          if-no-files-found: error

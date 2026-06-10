@@ -1,103 +1,88 @@
 # AGENTS.md
 
-Project instructions for AI agents working on ProtonSage.
+Project instructions for agents working on ProtonSage.
 
 ## Product direction
 
-ProtonSage is a local Linux desktop utility for Steam/Proton troubleshooting. ProtonDB/protondb-data is the primary data source. The app should emphasize recent ProtonDB reports strongly: older reports are historical signal, not authoritative truth.
+ProtonSage is a local Linux desktop utility for Steam/Proton troubleshooting.
 
-Initial PoC scope is intentionally narrow:
+- Stack: native Qt6/C++.
+- No webview, Wails, Electron, CEF, or WebKitGTK dependency.
+- ProtonDB/protondb-data is the primary report source: https://github.com/bdefore/protondb-data
+- Import only snapshot archives from `reports/`; do not clone the full ProtonDB data repository.
+- Scan Steam read-only. Do not write Steam config.
+- Core logic must remain independent of UI code where practical.
+- App must work without AI through deterministic extraction, scoring, checkboxes, and copy/export.
 
-- Import local ProtonDB/protondb-data into SQLite with FTS search.
-- Scan the local Steam library for installed games.
-- Look up games and rank reports by freshness/relevance.
-- Extract launch options mentioned in reports.
-- Produce rule-based recommendations/summaries with clear source references.
-- Optional but recommended AI advisor can read relevant ProtonDB posts plus local hardware/OS context and propose recommendations with citations.
-- Detect local hardware/OS natively in the app so reports can be compared against the user's actual setup.
-- Copy/export suggestions only; do not auto-edit Steam config in the first phase.
-- The PoC must read the user's Steam library read-only so recommendations can be shown for installed games.
-
-## Planning files
-
-- `PRODUCT_PLAN.md` is the durable product/architecture plan and should keep broad ideas, milestones, and future direction.
-- `TODO.md` is the durable implementation backlog.
-- `plan.md` is a temporary agent handoff for the current/next implementation slice. Keep it concise and replace/update it as work advances; do not use it as the long-term product plan.
-
-## Working principles
-
-- Simplicity first: prefer small, understandable modules over frameworks or abstractions that are not needed yet.
-- Surgical changes: keep edits focused on the requested behavior; avoid broad rewrites.
-- Verify success criteria: add or run the smallest useful checks before reporting done.
-- No secrets: never read, print, commit, or request secrets/API keys unless explicitly required and approved.
-- No speculative features: do not add modes, integrations, daemons, telemetry, cloud sync, or config mutation that were not requested.
-- AI integration must be optional. The app must remain useful without AI via deterministic extraction, scoring, and checkbox-based launch-option building.
-- If cloud AI is ever supported, require explicit opt-in and show exactly what data is sent. Prefer local/offline AI where practical.
-- ProtonForge can be used as an inspiration/reference project, but do not blindly copy architecture or code; preserve license attribution if any code is reused.
-
-## Architecture rules
-
-- Current stack direction: Go backend/core with a Wails desktop shell and a modern web frontend.
-- Keep core/domain logic independent of Wails and frontend framework code.
-- Frontend code may call Wails-exposed backend methods, but parsing, scoring, storage, Steam scanning, system detection, and advisor logic must live in Go packages that are testable without the GUI.
-- The frontend must not directly manipulate local files; all filesystem/Steam operations go through explicit Go backend services.
-- Prefer testable functions for parsing, scoring, search, Steam scanning, and recommendation generation.
-- Storage and import code should be separable from presentation code.
-
-Suggested dependency direction:
+## Current architecture
 
 ```text
-frontend/ -> Wails bindings -> internal/app -> internal/{advisor,core,storage,steam,system,protondb}
-internal/advisor -> internal/{core,storage,steam,system}
-internal/protondb -> internal/{core,storage}
-internal/steam -> internal/core
-internal/system -> internal/core
-internal/core -> no Wails/frontend dependencies
-cmd/protonsage -> internal packages for CLI/dev flows
+src/core/          Shared domain models
+src/storage/       SQLite schema and query layer
+src/protondb/      Snapshot listing and full-snapshot import
+src/steam/         Steam path detection, VDF parser, read-only library scan
+src/system/        Read-only Linux hardware/OS detection from /proc and /sys
+src/advisor/       Deterministic scoring, extraction, recommendations, preview
+src/ui/            Qt6 widgets UI and image cache
 ```
 
-## Data/source rules
+Dependency direction:
 
-- ProtonDB/protondb-data is the primary source for compatibility reports: https://github.com/bdefore/protondb-data
-- The raw export repository is large and stores dated `reports_*.tar.gz` snapshots under `reports/`; do not force-clone it unless explicitly needed.
-- Default import policy: resolve and download only the latest dated snapshot archive, not every historical archive.
-- Current evidence suggests each modern archive is cumulative for reports since the 2019 questionnaire/schema change, not incremental; verify this assumption in importer tests/metadata before relying on it.
-- ProtonDB report data is published under ODbL/DbCL; preserve attribution/license notes in docs and exports.
-- Any additional data source must be labeled secondary and kept distinguishable in storage and UI.
-- Report recency is central to scoring. Recent reports should have much higher weight than stale reports; stale reports can still provide historical context.
-- Recommendations must cite the report/source data they are based on.
+```text
+ui -> advisor/storage/steam/system/protondb/core
+advisor -> core
+storage -> core
+protondb -> storage/core
+steam -> core
+system -> core
+core -> no UI dependencies
+```
 
-## Frontend/Wails rules
+## Build/test
 
-- The UI should look modern and polished, not like a legacy desktop form.
-- Preferred frontend direction: React + Tailwind + shadcn/ui-style components inside Wails.
-- Use cards, badges, clear confidence/source states, checkbox/toggle builders, and launch-option preview panels for the recommendation flow.
-- Keep Wails bindings thin; put behavior in Go services under `internal/`.
+```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+./build/import_dedup_test
+./build/smoke_test
+./build/protonsage
+```
 
-## AI/advisor rules
+For existing build dirs, `cmake --build build` is fine.
 
-- AI is optional but recommended; never make core functionality depend on an AI provider.
-- AI recommendations must be grounded in retrieved ProtonDB reports, detected hardware/OS context, similarity/difference to report authors' systems, and current app state; do not invent unsupported tweaks.
-- AI output must include citations/report references and distinguish confidence levels.
-- Without AI, the app should expose extracted tips/snippets as selectable checkboxes so the user can build launch options manually.
-- Do not send hardware, OS, Steam library, or report excerpts to an external provider without explicit user opt-in.
+CI uses GitHub Actions in `.github/workflows/build.yml`.
 
-## Hardware/OS detection rules
+## Data rules
 
-- Detect local system info natively where possible: GPU model/vendor, GPU driver, CPU, RAM, distro, kernel, desktop/session type, and relevant runtime/Steam/Proton context.
-- Normalize detected local hardware/OS and ProtonDB `systemInfo` fields so reports can be scored by similarity to the user's system.
-- Treat exact hardware matches as useful signal, not absolute truth; recency still matters.
-- Keep detection read-only and resilient when commands/files are unavailable.
+- Database path: `$XDG_DATA_HOME/protonsage/protonsage.db`, fallback `~/.local/share/protonsage/protonsage.db`.
+- Cache path: `$XDG_CACHE_HOME/protonsage/` or Qt standard cache location.
+- ProtonDB snapshots are full replacements. Re-importing a snapshot must not duplicate reports.
+- Preserve ProtonDB ODbL/DbCL attribution in docs/import metadata/exports.
+- Report recency is central. Recent reports should outweigh stale historical reports.
+- Cite/source recommendations from ProtonDB reports.
 
-## Steam/library rules
+## Steam rules
 
-- Read Steam libraries from normal Linux Steam locations and Flatpak Steam locations where practical.
-- Parse `libraryfolders.vdf`, `appmanifest_*.acf`, and existing launch options read-only for the PoC.
-- Keep Steam parsing/writing code outside the Wails/frontend layer and test it with fixtures.
+- Read-only only.
+- Discover roots through `PROTONSAGE_STEAM_ROOTS`, native Steam, Flatpak Steam, and Snap Steam paths.
+- Parse `libraryfolders.vdf`, `appmanifest_*.acf`, and `localconfig.vdf` launch options.
+- Existing Steam launch options may be displayed and copied; do not mutate them.
 
-## Safety rules
+## System detection rules
 
-- The first PoC must not write directly to Steam config.
-- Any future Steam config write requires explicit user confirmation and a backup made before the change.
-- Future direct-write UX should preview exactly what will change and offer restore from backup.
-- Prefer copy/export workflows for launch options and recommendations.
+- Use `/proc` and `/sys` where possible.
+- Avoid blocking `QProcess` calls in app startup/UI paths.
+- Detect GPU vendor/model/driver, CPU, RAM, distro, kernel, desktop/session.
+
+## UI rules
+
+- Design target: dark, flat, `#1a1a1a` base, `#76B900` accent.
+- Avoid gradients, blur, glow, glassmorphism, emoji badges, and generic "AI cockpit" aesthetics.
+- Use plain labels and clear source-backed evidence.
+- Launch options are checkbox-selected and copy/export only.
+
+## AI rules
+
+- AI is optional and future-facing.
+- Never make core recommendations dependent on an AI provider.
+- Do not send hardware, Steam library, or report excerpts to external providers without explicit opt-in and preview.
