@@ -523,6 +523,34 @@ void MainWindow::showRecommendation(int appId) {
     }
     m_suggestionWidgets.clear();
 
+    // ── 1. Existing Steam options first (pre-checked) ──────────
+    if (!m_existingLaunchOptions.isEmpty()) {
+        QString existing = m_existingLaunchOptions;
+        int cmdIdx = existing.toLower().indexOf("%command%");
+        QString prefix = cmdIdx >= 0 ? existing.left(cmdIdx).trimmed() : "";
+        for (const QString& token : prefix.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts)) {
+            if (token == "%command%") continue;
+            Suggestion s;
+            s.snippet = token;
+            s.kind = "env_var";
+            s.id = "existing-" + token;
+            s.occurrences = 1;
+            s.systemSimilarity = 1.0;
+            s.confidence = "high";
+            s.category = "Current";
+            s.description = "Currently set in Steam";
+            auto meta = suggestionMeta(token);
+            s.label = meta.label.isEmpty() ? token : meta.label;
+            s.description = meta.desc.isEmpty() ? s.description : meta.desc;
+            auto* cb = new SuggestionCheckbox(s, m_suggestionsContainer);
+            cb->setChecked(true);
+            qobject_cast<QVBoxLayout*>(m_suggestionsContainer->layout())->addWidget(cb);
+            m_suggestionWidgets.append(cb);
+            connect(cb, &SuggestionCheckbox::toggled, this, [this]() { rebuildPreview(); });
+        }
+    }
+
+    // ── 2. ProtonDB suggestions (not pre-selected) ────────────
     int shown = 0;
     for (const auto& s : m_currentRec.suggestions) {
         if (s.kind == LaunchOptionKind::Diagnostic || s.kind == LaunchOptionKind::Note) continue;
@@ -558,7 +586,7 @@ void MainWindow::rebuildPreview() {
         m_previewLabel->setText("%command%");
         return;
     }
-    auto result = buildLaunchPreview(selected, m_existingLaunchOptions);
+    auto result = buildLaunchPreview(selected, "");
     m_previewLabel->setText(result.preview);
 }
 

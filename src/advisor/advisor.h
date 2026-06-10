@@ -6,6 +6,11 @@
 
 namespace ProtonSage {
 
+// ── Suggestion metadata ──────────────────────────────────────────────
+
+struct SuggestionMeta { QString label, desc, category; };
+SuggestionMeta suggestionMeta(const QString& snippet);
+
 // ── Scoring ──────────────────────────────────────────────────────────
 
 double recencyScore(const QDateTime& reportTime, const QDateTime& now = {});

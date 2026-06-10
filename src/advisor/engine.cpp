@@ -9,9 +9,7 @@ namespace ProtonSage {
 
 // ── Suggestion metadata (label, description, category) ──────────────
 
-struct SuggestionMeta { QString label, desc, category; };
-
-static SuggestionMeta suggestionMeta(const QString& snippet) {
+SuggestionMeta suggestionMeta(const QString& snippet) {
     QString s = snippet.toLower().trimmed();
     
     // Strip %command%
