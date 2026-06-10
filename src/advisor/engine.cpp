@@ -281,8 +281,17 @@ static QList<Suggestion> extractFromReports(const QList<RankedReport>& ranked) {
             // Upgrade confidence if combined count is high
             if (existing.occurrences >= 7) existing.confidence = "high";
             else if (existing.occurrences >= 3 && existing.confidence == "low") existing.confidence = "medium";
-            // Use the shorter/cleaner snippet
-            if (s.snippet.size() < existing.snippet.size()) existing.snippet = s.snippet;
+            // Use the shortest snippet that still contains the label content
+            // Prefer snippets without %command% if available (cleaner env var)
+            bool aHasCmd = existing.snippet.contains("%command%");
+            bool bHasCmd = s.snippet.contains("%command%");
+            if (!bHasCmd && aHasCmd) {
+                existing.snippet = s.snippet;  // prefer clean env var over %command% line
+            } else if (s.snippet.size() < existing.snippet.size() && !bHasCmd) {
+                existing.snippet = s.snippet;  // shorter is cleaner
+            } else if (s.snippet.size() < existing.snippet.size()) {
+                existing.snippet = s.snippet;
+            }
         } else {
             merged[key] = s;
         }
