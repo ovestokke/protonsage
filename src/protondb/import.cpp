@@ -306,6 +306,11 @@ static QStringList dedupeStrings(const QStringList& values)
 
 // ── Timestamp parsing ────────────────────────────────────────────────
 
+static QTimeZone utcTimeZone()
+{
+    return QTimeZone(QByteArray("UTC"));
+}
+
 static QDateTime parseReportTime(const QJsonValue& value)
 {
     if (value.isDouble()) {
@@ -313,9 +318,9 @@ static QDateTime parseReportTime(const QJsonValue& value)
         if (raw <= 0) return {};
         if (raw > 1e12)
             return QDateTime::fromMSecsSinceEpoch(
-                static_cast<qint64>(raw), QTimeZone::UTC);
+                static_cast<qint64>(raw), utcTimeZone());
         return QDateTime::fromMSecsSinceEpoch(
-            static_cast<qint64>(raw * 1000.0), QTimeZone::UTC);
+            static_cast<qint64>(raw * 1000.0), utcTimeZone());
     }
     if (!value.isString()) return {};
 
@@ -327,9 +332,9 @@ static QDateTime parseReportTime(const QJsonValue& value)
     if (ok && raw > 0) {
         if (raw > 1e12)
             return QDateTime::fromMSecsSinceEpoch(
-                static_cast<qint64>(raw), QTimeZone::UTC);
+                static_cast<qint64>(raw), utcTimeZone());
         return QDateTime::fromMSecsSinceEpoch(
-            static_cast<qint64>(raw * 1000.0), QTimeZone::UTC);
+            static_cast<qint64>(raw * 1000.0), utcTimeZone());
     }
 
     static const QStringList formats = {
