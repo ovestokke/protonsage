@@ -292,4 +292,27 @@ QList<ReportRecord> Database::reportsByAppId(int appId) {
     return result;
 }
 
+Database::GameRating Database::gameRating(int appId) {
+    GameRating r;
+    QSqlQuery q(m_db);
+    q.prepare(R"(
+        SELECT
+            COUNT(*),
+            SUM(CASE WHEN verdict='yes' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN verdict='yes'
+                AND json_extract(raw_json, '$.responses.opens') != 'no'
+                AND json_extract(raw_json, '$.responses.stabilityFaults') != 'yes'
+                AND json_extract(raw_json, '$.responses.significantBugs') != 'yes'
+                THEN 1 ELSE 0 END)
+        FROM reports WHERE appid=?
+    )");
+    q.addBindValue(appId);
+    if (q.exec() && q.next()) {
+        r.total = q.value(0).toInt();
+        r.yes = q.value(1).toInt();
+        r.clean = q.value(2).toInt();
+    }
+    return r;
+}
+
 } // namespace ProtonSage

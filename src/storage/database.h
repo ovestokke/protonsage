@@ -57,6 +57,10 @@ public:
     void upsertReportSystemInfo(qint64 reportId, const ReportSystemInfo& info);
     QList<ReportRecord> reportsByAppId(int appId);
 
+    // Computed rating from fault flags
+    struct GameRating { int total; int yes; int clean; int pctYes() const { return total ? yes*100/total : 0; } int pctClean() const { return total ? clean*100/total : 0; } };
+    GameRating gameRating(int appId);
+
 private:
     Database(QSqlDatabase db) : m_db(std::move(db)) {}
     void ensureSchema();
