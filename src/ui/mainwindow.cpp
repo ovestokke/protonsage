@@ -541,6 +541,10 @@ void MainWindow::showRecommendation(int appId) {
             s.description = "Currently set in Steam";
             auto meta = suggestionMeta(token);
             s.label = meta.label.isEmpty() ? token : meta.label;
+            // Title-case the label for display
+            if (!s.label.isEmpty() && s.label[0].isLower()) {
+                s.label[0] = s.label[0].toUpper();
+            }
             s.description = meta.desc.isEmpty() ? s.description : meta.desc;
             auto* cb = new SuggestionCheckbox(s, m_suggestionsContainer);
             cb->setChecked(true);
@@ -557,9 +561,7 @@ void MainWindow::showRecommendation(int appId) {
         if (s.label.isEmpty() && s.kind != "launch_option") continue;
         if (shown++ >= 15) break;
         auto* cb = new SuggestionCheckbox(s, m_suggestionsContainer);
-        if (shouldPreselect(s, m_profile)) {
-            cb->setChecked(true);
-        }
+        // Never auto-select ProtonDB suggestions — only Current gets pre-checked
         qobject_cast<QVBoxLayout*>(m_suggestionsContainer->layout())->addWidget(cb);
         m_suggestionWidgets.append(cb);
         connect(cb, &SuggestionCheckbox::toggled, this, [this]() { rebuildPreview(); });
